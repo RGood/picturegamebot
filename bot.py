@@ -91,7 +91,7 @@ class PictureGameBot:
       elif rounds_format:
         if len(rounds_format) >= 7:
           bot.subreddit.set_flair(user, "{:d} wins".format(len(rounds_format) + 1))
-        elsif len(rounds_format) < 7:
+        else:
           bot.subreddit.set_flair(user, flair_text + ", " + curround)
     
   def winner_comment(bot, post):
