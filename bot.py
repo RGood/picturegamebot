@@ -69,6 +69,8 @@ class PictureGameBot:
     # Internal: If the flair is in the format "X wins", it increments the value
     #   and if the player doesn't have a flair, it sets his flair to "1 win".
     #
+    # user - A praw.objects.Redditor object.
+    #
     # Returns nothing.
     current_flair = bot.subreddit.get_flair(user)
     if current_flair is not None:
@@ -83,6 +85,8 @@ class PictureGameBot:
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
     #   replied with "+correct" by the r_player account.
+    #   
+    # post - A praw.objects.Submission object.
     #
     # Returns a praw.objects.Comment.
     comments = praw.helpers.flatten_tree(post.comments)
@@ -96,6 +100,8 @@ class PictureGameBot:
     #   moderators mark it as dead. This could be because the challenge was too
     #   subjective or too vague. This can be done by giving the post a
     #   "Dead Round" flair.
+    #   
+    # post - A praw.objects.Submission object to check.
     #
     # Returns a Boolean.
     if bot.winner_comment(post) is not None and time.time() > (post.created_utc + 5*60*60):
