@@ -5,7 +5,8 @@ Requested by /u/malz_ for /r/PictureGame
 Pretty much my magnum opus when it comes to my bot-making skills.
 """
 
-import praw, os, re, base64, time
+import praw, os, re, base64
+from time import time
 from textwrap import dedent
 from random import choice as sample
 
@@ -109,24 +110,57 @@ class PictureGameBot:
         return r.get_info(thing_id=comment.parent_id)
     
   def is_dead(bot, post):
-    # Internal: A post is dead if it hasn't been solved for 5 hours or if the
+    # Internal: A post is dead if hasn't been solved for 2 hours or if the
     #   moderators mark it as dead. This could be because the challenge was too
     #   subjective or too vague. This can be done by giving the post a
     #   "Dead Round" flair.
-    #   
+    # TODO: Fix this
+    #
     # post - A praw.objects.Submission object to check.
     #
     # Returns a Boolean.
-    if bot.winner_comment(post) is not None and time.time() > (post.created_utc + 5*60*60):
+    # 
+    if bot.winner_comment(post) == None and time.time() > (post.created_utc + 60*60):
       return True
     if post.link_flair_text.lower() == "dead round":
       return True
     return False
     
+  def warn_nopost(bot, op=None):
+    subject = "You haven't submitted a post!"
+    text    = dedent("""
+              It seems that an hour has passed since you won the last round.
+              Please upload a post in the next 30 minutes, or else your account
+              will be reset.
+              """)
+    if op:
+      bot.r_gamebot.send_message(op, subject, text)
+    bot.r_gamebot.send_message(bot.r_player.user, subject, text)
+    
+  def warn_noanswer(bot, op=None):
+    subject = "You haven't gotten an answer!"
+    text    = dedent("""
+              It seems that 90 minutes have passed since you submitted your
+              round. If no answer has been marked as correct in the next 30
+              minutes, the account will be reset. Try giving hints, or if you
+              already gave out a few hints, try and make them easier.
+              """)
+    if op:
+      bot.r_gamebot.send_message(op, subject, text)
+    bot.r_gamebot.send_message(bot.r_player.user, subject, text)
+    
+  def create_challenge(bot):
+    # Internal: Reset the password and have the bot start a random challenge
+    #   from the challenges.csv file.
+    #   
+    # Returns nothing. It starts its own mini loop.
+    "See comment"
+    
   def win(bot, comment):
     # Internal: So somebody got the right answer. First, add a win to his flair.
     #   Then, congratulate the winner and send him the resetted password via
     #   private message.
+    # TODO: Set "ROUND OVER" link flair.
     #
     # comment - The winning comment.
     # 
@@ -156,31 +190,40 @@ class PictureGameBot:
     
   def run(bot):
     # Public: Starts listening in the subreddit and does its thing.
+    # TODO: More here.
     # 
     # Returns nothing, it's a looping function.
-    latest_won = None
+    latest_won       = None  # The latest post that was answered and dealt with.
+    current_op       = None  # The person who owns the account.
+    warning_nopost   = False # Warn if the user posts nothing for an hour.
+    warning_noanswer = False # Warn if not answered within an hour after posting.
     while True:
       latest_round = bot.latest_round()
+      winner_comment = bot.winner_comment(latest_round)
       if latest_round == latest_won:
-        # We're still waiting on the next post.
-        
-        # TODO: Notify the OP that his account is moving on without him if he
-        #   doesn't post for 5 hours.
-        # TODO: Notify the OP a couple of hours earlier that his account is
-        #   going bye-bye soon if he doesn't post soon.
-        "See comment"
+        if time() > (winner_comment.created_utc + 3600) and not warning_nopost:
+          bot.warn_nopost(current_op)
+          warning_nopost = True
+        if time() > (winner_comment.created_utc + 5400):
+          "TODO: Reset the account, and create a new submission."
       else:
-        # We're still waiting on the answer.
-        if bot.is_dead(latest_round):
-          # The post is officially dead.
-          # TODO: Move on to a better home.
-          "See comment"
+        if time() > (latest_round.created_utc + 5400) and not warning_noanswer:
+          bot.warn_noanswer(current_op)
+          warning_noanswer = True
+        if (time() > (latest_round.created_utc + 7200) or 
+            latest_round.link_flair_text.lower() == "dead round"):
+          latest_round.add_comment(dedent("""
+            This round hasn't been solved for 2 hours! The game account has
+            been reset and a new challenge has been created.
+          """)).distiguish()
         else:
-          winner_comment = bot.winner_comment()
-          if winner_comment is not None:
-            # We have an answer! Pass the account to him.
+          if (winner_comment is not None and not
+              any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies)):
             bot.win(winner_comment)
             latest_won = latest_round
+            current_op = winner_comment.author
+            warning_nopost   = False
+            warning_noanswer = False
 
 if __name__ == "__main__":
   print(PictureGameBot(subreddit="ModeratorApp").generate_password())
