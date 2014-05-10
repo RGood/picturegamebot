@@ -145,7 +145,6 @@ class PictureGameBot:
     bot.r_gamebot.send_message(comment.author, subject, text)
     
   def run(bot):
-    raise NotImplementedError("Some important bits are missing.")
     # Public: Starts listening in the subreddit and does its thing.
     # 
     # Returns nothing, it's a looping function.
