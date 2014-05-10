@@ -109,23 +109,6 @@ class PictureGameBot:
           "+correct" in comment.body and not comment.is_root):
         return r.get_info(thing_id=comment.parent_id)
     
-  def is_dead(bot, post):
-    # Internal: A post is dead if hasn't been solved for 2 hours or if the
-    #   moderators mark it as dead. This could be because the challenge was too
-    #   subjective or too vague. This can be done by giving the post a
-    #   "Dead Round" flair.
-    # TODO: Fix this
-    #
-    # post - A praw.objects.Submission object to check.
-    #
-    # Returns a Boolean.
-    # 
-    if bot.winner_comment(post) == None and time.time() > (post.created_utc + 60*60):
-      return True
-    if post.link_flair_text.lower() == "dead round":
-      return True
-    return False
-    
   def warn_nopost(bot, op=None):
     subject = "You haven't submitted a post!"
     text    = dedent("""
