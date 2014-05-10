@@ -68,22 +68,31 @@ class PictureGameBot:
     bot.r_player.login(bot.player[0], newpass)
     return newpass
     
-  def increment_flair(bot, user):
-    # Internal: If the flair is in the format "X wins", it increments the value
-    #   and if the player doesn't have a flair, it sets his flair to "1 win".
+  def increment_flair(bot, user, curround):
+    # Internal: Add the current win to the player's flair. If the player has
+    #   more than 7 wins, sets the flair to "X wins", else adds the current
+    #   round number to the flair.
+    # TODO: Deal with "Fair Play Award"
     #
     # user - A praw.objects.Redditor object.
     #
     # Returns nothing.
     current_flair = bot.subreddit.get_flair(user)
     if current_flair is not None:
-      flair_text = current_flair["flair_text"]
-      flair_match = re.search("^(\d+) wins?$", str(flair_text), re.IGNORECASE)
+      flair_text    = current_flair["flair_text"]
+      wins_format   = re.search("^(\d+) wins?$", str(flair_text), re.IGNORECASE)
+      rounds_format = re.findall("(\d+)", str(flair_text), re.IGNORECASE)
+      
       if flair_text == "" or flair_text == None:
-        bot.subreddit.set_flair(user, "1 win")
-      if flair_match:
-        wins = int(flair_match.group(1))
+        bot.subreddit.set_flair(user, "Round {:d}".format(curround))
+      elif wins_format:
+        wins = int(wins_format.group(1))
         bot.subreddit.set_flair(user, "{:d} wins".format(wins + 1))
+      elif rounds_format:
+        if len(rounds_format) >= 7:
+          bot.subreddit.set_flair(user, "{:d} wins".format(len(rounds_format) + 1))
+        elsif len(rounds_format) < 7:
+          bot.subreddit.set_flair(user, flair_text + ", " + curround)
     
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
@@ -121,7 +130,6 @@ class PictureGameBot:
     # comment - The winning comment.
     # 
     # Regrets nothing.
-    bot.increment_flair(comment.author)
     comment.reply(dedent("""
       Congratulations, that was the correct answer! Please continue the game as
       soon as possible. You have been PM'd the instructions for continuing the
@@ -131,6 +139,7 @@ class PictureGameBot:
     curround = int(re.search("^[Round (\d+)",
                              comment.submission.title,
                              re.IGNORECASE).group(1))
+    bot.increment_flair(comment.author, curround)
     subject  = "Congratulations, you can post the next round!"
     text     = dedent("""
                  The password for /u/{:s} is `{:s}`.
