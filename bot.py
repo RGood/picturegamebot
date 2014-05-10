@@ -16,9 +16,10 @@ class PictureGameBot:
   def __init__(bot, gamebot=(None, None), player=(None, None), subreddit="PictureGame"):
     # Public: Logs into the bot and the player account.
     # 
-    # gamebot - A tuple of username and password for the bot account.
-    # player  - A tuple of username and password for the picturegame account.
-    #           This is used to reset the password.
+    # gamebot   - A tuple of username and password for the bot account.
+    # player    - A tuple of username and password for the picturegame account.
+    #             This is used to reset the password.
+    # subreddit - The subreddit to listen on.
     # 
     # Returns a PictureGameBot
     bot.gamebot   = (os.environ.get("REDDIT_USERNAME", gamebot[0]),
