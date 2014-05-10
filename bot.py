@@ -13,7 +13,7 @@ import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning) 
 
 class PictureGameBot:
-  version = "0.1"
+  version = "0.2"
   user_agent = "/r/PictureGame Bot"
   
   def __init__(bot, gamebot=(None, None), player=(None, None), subreddit="PictureGame"):
