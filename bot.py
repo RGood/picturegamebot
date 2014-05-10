@@ -188,25 +188,25 @@ class PictureGameBot:
           bot.warn_nopost(current_op)
           warning_nopost = True
         if time() > (winner_comment.created_utc + 5400):
-          "TODO: Reset the account, and create a new submission."
+          bot.create_challenge()
       else:
         if time() > (latest_round.created_utc + 5400) and not warning_noanswer:
           bot.warn_noanswer(current_op)
           warning_noanswer = True
         if (time() > (latest_round.created_utc + 7200) or 
             latest_round.link_flair_text.lower() == "dead round"):
+          bot.create_challenge()
           latest_round.add_comment(dedent("""
             This round hasn't been solved for 2 hours! The game account has
             been reset and a new challenge has been created.
           """)).distiguish()
-        else:
-          if (winner_comment is not None and not
-              any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies)):
-            bot.win(winner_comment)
-            latest_won = latest_round
-            current_op = winner_comment.author
-            warning_nopost   = False
-            warning_noanswer = False
+        if (winner_comment is not None and not
+            any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies)):
+          bot.win(winner_comment)
+          latest_won = latest_round
+          current_op = winner_comment.author
+          warning_nopost   = False
+          warning_noanswer = False
 
 if __name__ == "__main__":
   print(PictureGameBot(subreddit="ModeratorApp").generate_password())
