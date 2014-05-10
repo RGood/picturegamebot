@@ -41,7 +41,7 @@ class PictureGameBot:
     new = bot.subreddit.get_new()
     latest_post = next(post for post in new if post.title.lower().startswith("[round"))
     return latest_post
-  
+    
   def generate_password(bot):
     # Internal: Generates a random password using the wordlist.txt file in the
     #   same directory. If the file was not found, use a random string instead.
@@ -52,7 +52,7 @@ class PictureGameBot:
       return "{:s}-{:s}-{:s}".format(sample(words), sample(words), sample(words))
     except IOError:
       return base64.urlsafe_b64encode(os.urandom(30))
-  
+    
   def reset_password(bot):
     # Internal: Resets the password of the player account, determined by
     #   bot.r_player and logs into the account with the new password.
@@ -64,7 +64,7 @@ class PictureGameBot:
     bot.r_player.request_json(url, data=data)
     bot.r_player.login(bot.player[0], newpass)
     return newpass
-  
+    
   def increment_flair(bot, user):
     # Internal: If the flair is in the format "X wins", it increments the value
     #   and if the player doesn't have a flair, it sets his flair to "1 win".
@@ -81,7 +81,7 @@ class PictureGameBot:
       if flair_match:
         wins = int(flair_match.group(1))
         bot.subreddit.set_flair(user, "{:d} wins".format(wins + 1))
-      
+    
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
     #   replied with "+correct" by the r_player account.
@@ -94,7 +94,7 @@ class PictureGameBot:
       if (comment.author == bot.r_player.user and
           "+correct" in comment.body and not comment.is_root):
         return r.get_info(thing_id=comment.parent_id)
-  
+    
   def is_dead(bot, post):
     # Internal: A post is dead if it hasn't been solved for 5 hours or if the
     #   moderators mark it as dead. This could be because the challenge was too
@@ -109,7 +109,7 @@ class PictureGameBot:
     if post.link_flair_text.lower() == "dead round":
       return True
     return False
-  
+    
   def run(bot):
     # Public: Starts listening in the subreddit and does its thing.
     # 
