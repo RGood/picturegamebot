@@ -74,7 +74,8 @@ class PictureGameBot:
     #   round number to the flair.
     # TODO: Deal with "Fair Play Award"
     #
-    # user - A praw.objects.Redditor object.
+    # user     - A praw.objects.Redditor object.
+    # curround - The round number that the user just won.
     #
     # Returns nothing.
     current_flair = bot.subreddit.get_flair(user)
