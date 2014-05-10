@@ -1,9 +1,12 @@
 """
 PictureGameBot by /u/Mustermind
 Requested by /u/malz_ for /r/PictureGame
+
+Pretty much my magnum opus when it comes to my bot-making skills.
 """
 
 import praw, os, re, base64, time
+from textwrap import dedent
 from random import choice as sample
 
 import warnings
@@ -34,7 +37,7 @@ class PictureGameBot:
     
     bot.subreddit = bot.r_gamebot.get_subreddit(subreddit)
     
-  def latest_post(bot):
+  def latest_round(bot):
     # Internal: Gets the top post in a subreddit that starts with "[Round".
     #
     # Returns a praw.objects.Submission.
@@ -53,12 +56,12 @@ class PictureGameBot:
     except IOError:
       return base64.urlsafe_b64encode(os.urandom(30))
     
-  def reset_password(bot):
+  def reset_password(bot, password=None):
     # Internal: Resets the password of the player account, determined by
     #   bot.r_player and logs into the account with the new password.
     #
     # Returns the new password.
-    newpass = bot.generate_password()
+    newpass = password or bot.generate_password()
     url = "http://www.reddit.com/api/update_password"
     data = {"curpass": bot.player[1], "newpass": newpass, "verpass": newpass}
     bot.r_player.request_json(url, data=data)
@@ -75,7 +78,7 @@ class PictureGameBot:
     current_flair = bot.subreddit.get_flair(user)
     if current_flair is not None:
       flair_text = current_flair["flair_text"]
-      flair_match = re.search("(\d+) wins?", str(flair_text), re.IGNORECASE)
+      flair_match = re.search("^(\d+) wins?$", str(flair_text), re.IGNORECASE)
       if flair_text == "" or flair_text == None:
         bot.subreddit.set_flair(user, "1 win")
       if flair_match:
@@ -110,14 +113,65 @@ class PictureGameBot:
       return True
     return False
     
+  def win(bot, comment):
+    # Internal: So somebody got the right answer. First, add a win to his flair.
+    #   Then, congratulate the winner and send him the resetted password via
+    #   private message.
+    #
+    # comment - The winning comment.
+    # 
+    # Regrets nothing.
+    bot.increment_flair(comment.author)
+    comment.reply(dedent("""
+      Congratulations, that was the correct answer! Please continue the game as
+      soon as possible. You have been PM'd the instructions for continuing the
+      game.
+    """)).distinguish()
+    newpass  = bot.reset_password()
+    curround = int(re.search("^[Round (\d+)",
+                             comment.submission.title,
+                             re.IGNORECASE).group(1))
+    subject  = "Congratulations, you can post the next round!"
+    text     = dedent("""
+                 The password for /u/{:s} is `{:s}`.
+                 **DO NOT CHANGE THIS PASSWORD.**
+                 It will be automatically changed once someone solves your riddle.
+                 Post the next round and reply to the first correct answer with
+                 "+correct". The post title should start with "[Round {:d}]".
+                 Please put your post up as soon as possible.\n\n
+                 If you need any help with hosting the round, do
+                 [consult the wiki](http://reddit.com/r/picturegame/wiki/hosting).
+               """).format(bot.player[0], newpass, curround + 1)
+    bot.r_gamebot.send_message(comment.author, subject, text)
+    
   def run(bot):
+    raise NotImplementedError("Some important bits are missing.")
     # Public: Starts listening in the subreddit and does its thing.
     # 
     # Returns nothing, it's a looping function.
-    latest_round = ""
-    is_dead      = False
+    latest_won = None
     while True:
-      "Yo"
+      latest_round = bot.latest_round()
+      if latest_round == latest_won:
+        # We're still waiting on the next post.
+        
+        # TODO: Notify the OP that his account is moving on without him if he
+        #   doesn't post for 5 hours.
+        # TODO: Notify the OP a couple of hours earlier that his account is
+        #   going bye-bye soon if he doesn't post soon.
+        "See comment"
+      else:
+        # We're still waiting on the answer.
+        if bot.is_dead(latest_round):
+          # The post is officially dead.
+          # TODO: Move on to a better home.
+          "See comment"
+        else:
+          winner_comment = bot.winner_comment()
+          if winner_comment is not None:
+            # We have an answer! Pass the account to him.
+            bot.win(winner_comment)
+            latest_won = latest_round
 
 if __name__ == "__main__":
-  PictureGameBot(subreddit="")
+  print(PictureGameBot(subreddit="ModeratorApp").generate_password())
