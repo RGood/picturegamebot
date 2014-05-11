@@ -65,13 +65,21 @@ class PictureGameBot:
   def reset_password(bot, password=None):
     # Internal: Resets the password of the player account, determined by
     #   bot.r_player and logs into the account with the new password.
-    # TODO: Fix this to use redis or something.
+    # 
+    # TODO: Maybe a persistent storage like Redis.
     #
     # Returns the new password.
     newpass = password or bot.generate_password()
+    print("NEW PASSWORD: {:s}".format(newpass))
+    bot.r_gamebot.send_message(
+      bot.subreddit,
+      "Password Change",
+      "Password of {:s} is now {:s}".format(bot.player[0], newpass)
+    )
     url = "http://www.reddit.com/api/update_password"
     data = {"curpass": bot.player[1], "newpass": newpass, "verpass": newpass}
     bot.r_player.request_json(url, data=data)
+    bot.player = (bot.player[0], newpass)
     bot.r_player.login(bot.player[0], newpass)
     return newpass
     
@@ -101,7 +109,7 @@ class PictureGameBot:
         if rounds >= 7:
           bot.subreddit.set_flair(user, "{:d} wins".format(rounds + 1))
         else:
-          bot.subreddit.set_flair(user, flair_text + ", " + curround)
+          bot.subreddit.set_flair(user, "{:s}, {:d}".format(flair_text, curround))
     
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
@@ -114,7 +122,7 @@ class PictureGameBot:
     for comment in comments:
       if (comment.author == bot.r_player.user and
           "+correct" in comment.body and not comment.is_root):
-        return r.get_info(thing_id=comment.parent_id)
+        return bot.r_gamebot.get_info(thing_id=comment.parent_id)
     
   def warn_nopost(bot, op=None):
     # Internal: Warn the account and the op, if possible, that the account will
@@ -124,7 +132,7 @@ class PictureGameBot:
     # 
     # Returns nothing.
     subject = "You haven't submitted a post!"
-    text    = dedent("""
+    text    = dedent("""\
               It seems that an hour has passed since you won the last round.
               Please upload a post in the next 30 minutes, or else your account
               will be reset.
@@ -141,7 +149,7 @@ class PictureGameBot:
     # 
     # Returns nothing.
     subject = "You haven't gotten an answer!"
-    text    = dedent("""
+    text    = dedent("""\
               It seems that 90 minutes have passed since you submitted your
               round. If no answer has been marked as correct in the next 30
               minutes, the account will be reset. Try giving hints, or if you
@@ -180,7 +188,7 @@ class PictureGameBot:
                              bot.latest_round().title,
                              re.IGNORECASE).group(1)) + 1
     post = bot.r_player.submit(bot.subreddit,
-      ("[Round {:d}][Bot] From which iconic location is this Google Street " \
+      ("[Round {:d}][Bot] From which iconic location is this Google Street-" \
       "View image?").format(newround), url=link)
     
     firsthint = secondhint = giveaway = False
@@ -191,15 +199,25 @@ class PictureGameBot:
           comment.reply("+correct")
           sys.exit(0)
         else:
-          if time() > (post.created_utc + 1800) and not firsthint:
+          if bot.minutes_passed(post, 30) and not firsthint:
             post.add_comment(hints[0])
             firsthint = True
-          if time() > (post.created_utc + 3600) and not secondhint:
+          if bot.minutes_passed(post, 60) and not secondhint:
             post.add_comment(hints[1])
             secondhint = True
-          if time() > (post.created_utc + 5400) and not giveaway:
+          if minutes_passed(post, 90) and not giveaway:
             post.add_comment(hints[2])
             giveaway = True
+    
+  def minutes_passed(bot, thing, minutes):
+    # Internal: Returns True if said minutes have passed since the creation
+    #   of said thing.
+    # 
+    #   thing - An object with a 'created_utc' attribute.
+    # minutes - Number of minutes to have passed.
+    # 
+    # Returns a Boolean.
+    return time() > (thing.created_utc + (minutes*60))
     
   def win(bot, comment):
     # Internal: So somebody got the right answer. First, add a win to his
@@ -209,27 +227,27 @@ class PictureGameBot:
     # comment - The winning comment.
     # 
     # Regrets nothing.
-    comment.reply(dedent("""
-      Congratulations, that was the correct answer! Please continue the game as
-      soon as possible. You have been PM'd the instructions for continuing the
-      game.
+    comment.reply(dedent("""\
+    Congratulations, that was the correct answer! Please continue the game as
+    soon as possible. You have been PM'd the instructions for continuing the
+    game.
     """)).distinguish()
     newpass  = bot.reset_password()
-    curround = int(re.search("^[Round (\d+)",
+    curround = int(re.search("^\[Round (\d+)",
                              comment.submission.title,
                              re.IGNORECASE).group(1))
     bot.increment_flair(comment.author, curround)
     bot.subreddit.set_flair(comment.submission, "ROUND OVER")
     subject  = "Congratulations, you can post the next round!"
-    text     = dedent("""
-                 The password for /u/{:s} is `{:s}`.
-                 **DO NOT CHANGE THIS PASSWORD.**
-                 It will be automatically changed once someone solves your
-                 challenge. Post the next round and reply to the first correct
-                 answer with "+correct". The post title should start with
-                 "[Round {:d}]". Please put your post up as soon as possible.
-                 \n\nIf you need any help with hosting the round, do consult
-                 [the wiki](http://reddit.com/r/picturegame/wiki/hosting).
+    text     = dedent("""\
+               The password for /u/{:s} is `{:s}`.
+               **DO NOT CHANGE THIS PASSWORD.**
+               It will be automatically changed once someone solves your
+               challenge. Post the next round and reply to the first correct
+               answer with "+correct". The post title should start with
+               "[Round {:d}]". Please put your post up as soon as possible.
+               \n\nIf you need any help with hosting the round, do consult
+               [the wiki](http://reddit.com/r/picturegame/wiki/hosting).
                """).format(bot.player[0], newpass, curround + 1)
     bot.r_gamebot.send_message(comment.author, subject, text)
     
@@ -245,13 +263,15 @@ class PictureGameBot:
     while True:
       latest_round = bot.latest_round()
       winner_comment = bot.winner_comment(latest_round)
+      latest_round_flair = latest_round.link_flair_text
       if (latest_round == latest_won or
-          latest_round.link_flair_text.lower() == "round over" or
-          latest_round.link_flair_text.lower() == "dead round"):
-        if time() > (winner_comment.created_utc + 3600) and not warning_nopost:
+          (latest_round_flair and
+           (latest_round_flair == "round over" or
+           latest_round_flair == "dead round"))):
+        if bot.minutes_passed(winner_comment, 60) and not warning_nopost:
           bot.warn_nopost(current_op)
           warning_nopost = True
-        if time() > (winner_comment.created_utc + 5400):
+        if bot.minutes_passed(winner_comment, 90):
           bot.create_challenge()
           current_op = bot.r_player.user
       else:
@@ -263,17 +283,18 @@ class PictureGameBot:
             warning_nopost   = False
             warning_noanswer = False
         else:
-          if time() > (latest_round.created_utc + 5400) and not warning_noanswer:
+          if bot.minutes_passed(latest_round, 90) and not warning_noanswer:
             bot.warn_noanswer(current_op)
             warning_noanswer = True
-          if (time() > (latest_round.created_utc + 7200) or 
-              latest_round.link_flair_text.lower() == "dead round"):
+          if (bot.minutes_passed(latest_round, 120) or 
+              latest_round_flair and latest_round_flair == "dead round"):
+            bot.subreddit.set_flair(comment.submission, "DEAD ROUND")
             bot.create_challenge()
             current_op = bot.r_player.user
-            latest_round.add_comment(dedent("""
-              This round hasn't been solved for 2 hours! The game account has
-              been reset and a new challenge has been created.
+            latest_round.add_comment(dedent("""\
+            This round hasn't been solved for 2 hours! The game account has
+            been reset and a new challenge has been created.
             """)).distiguish()
 
 if __name__ == "__main__":
-  print(PictureGameBot(subreddit="ModeratorApp").generate_password())
+  PictureGameBot(subreddit="ModeratorApp").run()
