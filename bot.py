@@ -97,8 +97,9 @@ class PictureGameBot:
         wins = int(wins_format.group(1))
         bot.subreddit.set_flair(user, "{:d} wins".format(wins + 1))
       elif rounds_format:
-        if len(rounds_format) >= 7:
-          bot.subreddit.set_flair(user, "{:d} wins".format(len(rounds_format) + 1))
+        rounds = len(rounds_format)
+        if rounds >= 7:
+          bot.subreddit.set_flair(user, "{:d} wins".format(rounds + 1))
         else:
           bot.subreddit.set_flair(user, flair_text + ", " + curround)
     
@@ -170,7 +171,8 @@ class PictureGameBot:
     #    hints - The hints to provide periodically until the answer is found.
     #
     # Returns nothing.
-    query = "https://maps.googleapis.com/maps/api/streetview?size=640x640&location={:s}&sensor=false".format(address)
+    query = "https://maps.googleapis.com/maps/api/streetview?size=640x640&" \
+            "location={:s}&sensor=false".format(address)
     path  = "tmp/{:s}".format(address)
     urlretrieve(query, path)
     link = bot.imgur.upload_image(path, title="PictureGame Challenge").link
@@ -178,7 +180,8 @@ class PictureGameBot:
                              bot.latest_round().title,
                              re.IGNORECASE).group(1)) + 1
     post = bot.r_player.submit(bot.subreddit,
-      "[Round {:d}][Bot] From which iconic location is this Google Street View image?".format(newround), url=link)
+      "[Round {:d}][Bot] From which iconic location is this Google Street" \
+      "View image?".format(newround), url=link)
     
     firsthint = secondhint = giveaway = False
     while True:
@@ -199,10 +202,9 @@ class PictureGameBot:
             giveaway = True
     
   def win(bot, comment):
-    # Internal: So somebody got the right answer. First, add a win to his flair.
-    #   Then, congratulate the winner and send him the resetted password via
-    #   private message.
-    # TODO: Set "ROUND OVER" link flair.
+    # Internal: So somebody got the right answer. First, add a win to his
+    #   flair. Then, congratulate the winner and send him the resetted
+    #   password via private message.
     #
     # comment - The winning comment.
     # 
@@ -217,16 +219,17 @@ class PictureGameBot:
                              comment.submission.title,
                              re.IGNORECASE).group(1))
     bot.increment_flair(comment.author, curround)
+    bot.subreddit.set_flair(comment.submission, "ROUND OVER")
     subject  = "Congratulations, you can post the next round!"
     text     = dedent("""
                  The password for /u/{:s} is `{:s}`.
                  **DO NOT CHANGE THIS PASSWORD.**
-                 It will be automatically changed once someone solves your riddle.
-                 Post the next round and reply to the first correct answer with
-                 "+correct". The post title should start with "[Round {:d}]".
-                 Please put your post up as soon as possible.\n\n
-                 If you need any help with hosting the round, do
-                 [consult the wiki](http://reddit.com/r/picturegame/wiki/hosting).
+                 It will be automatically changed once someone solves your
+                 challenge. Post the next round and reply to the first correct
+                 answer with "+correct". The post title should start with
+                 "[Round {:d}]". Please put your post up as soon as possible.
+                 \n\nIf you need any help with hosting the round, do consult
+                 [the wiki](http://reddit.com/r/picturegame/wiki/hosting).
                """).format(bot.player[0], newpass, curround + 1)
     bot.r_gamebot.send_message(comment.author, subject, text)
     
@@ -235,14 +238,16 @@ class PictureGameBot:
     # TODO: More here.
     # 
     # Returns nothing, it's a looping function.
-    latest_won       = None  # The latest post that was answered and dealt with.
+    latest_won       = None  # The latest post that was answered and dealt with
     current_op       = None  # The person who owns the account.
     warning_nopost   = False # Warn if the user posts nothing for an hour.
-    warning_noanswer = False # Warn if not answered within an hour after posting.
+    warning_noanswer = False # Warn if not answered within 1 hour of posting.
     while True:
       latest_round = bot.latest_round()
       winner_comment = bot.winner_comment(latest_round)
-      if latest_round == latest_won:
+      if (latest_round == latest_won or
+          latest_round.link_flair_text.lower() == "round over" or
+          latest_round.link_flair_text.lower() == "dead round"):
         if time() > (winner_comment.created_utc + 3600) and not warning_nopost:
           bot.warn_nopost(current_op)
           warning_nopost = True
