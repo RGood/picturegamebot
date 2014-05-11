@@ -5,10 +5,12 @@ Requested by /u/malz_ for /r/PictureGame
 Pretty much my magnum opus when it comes to my bot-making skills.
 """
 
-import praw, os, re, base64
+import praw, os, re, base64, pyimgur, sys
 from time import time
 from textwrap import dedent
 from random import choice as sample
+from multiprocessing import Process
+from urllib.request import urlretrieve
 
 import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning) 
@@ -17,12 +19,14 @@ class PictureGameBot:
   version = "0.2"
   user_agent = "/r/PictureGame Bot"
   
-  def __init__(bot, gamebot=(None, None), player=(None, None), subreddit="PictureGame"):
-    # Public: Logs into the bot and the player account.
+  def __init__(bot,gamebot=(None, None), player=(None, None),
+               imgurid=None, subreddit="PictureGame"):
+    # Public: Logs into the bot and the player account. Sets up imgur access.
     # 
-    # gamebot   - A tuple of username and password for the bot account.
-    # player    - A tuple of username and password for the picturegame account.
+    #   gamebot - A tuple of username and password for the bot account.
+    #    player - A tuple of username and password for the picturegame account.
     #             This is used to reset the password.
+    #   imgurid - The Client ID used to log into Imgur.
     # subreddit - The subreddit to listen on.
     # 
     # Returns a PictureGameBot
@@ -37,6 +41,7 @@ class PictureGameBot:
     bot.r_player.login(bot.player[0], bot.player[1])
     
     bot.subreddit = bot.r_gamebot.get_subreddit(subreddit)
+    bot.imgur     = pyimgur.Imgur(os.environ.get("IMGUR_ID", imgurid))
     
   def latest_round(bot):
     # Internal: Gets the top post in a subreddit that starts with "[Round".
@@ -60,6 +65,7 @@ class PictureGameBot:
   def reset_password(bot, password=None):
     # Internal: Resets the password of the player account, determined by
     #   bot.r_player and logs into the account with the new password.
+    # TODO: Fix this to use redis or something.
     #
     # Returns the new password.
     newpass = password or bot.generate_password()
@@ -75,7 +81,7 @@ class PictureGameBot:
     #   round number to the flair.
     # TODO: Deal with "Fair Play Award"
     #
-    # user     - A praw.objects.Redditor object.
+    #     user - A praw.objects.Redditor object.
     # curround - The round number that the user just won.
     #
     # Returns nothing.
@@ -110,6 +116,12 @@ class PictureGameBot:
         return r.get_info(thing_id=comment.parent_id)
     
   def warn_nopost(bot, op=None):
+    # Internal: Warn the account and the op, if possible, that the account will
+    #   be reset if he doesn't create a post in 30 minutes.
+    #   
+    # op - An optional other person who holds the account.
+    # 
+    # Returns nothing.
     subject = "You haven't submitted a post!"
     text    = dedent("""
               It seems that an hour has passed since you won the last round.
@@ -121,6 +133,12 @@ class PictureGameBot:
     bot.r_gamebot.send_message(bot.r_player.user, subject, text)
     
   def warn_noanswer(bot, op=None):
+    # Internal: Warn the account and the op, if possible, that the account will
+    #   be reset if his question isn't answered in 30 minutes.
+    #   
+    # op - An optional other person who holds the account.
+    # 
+    # Returns nothing.
     subject = "You haven't gotten an answer!"
     text    = dedent("""
               It seems that 90 minutes have passed since you submitted your
@@ -134,10 +152,52 @@ class PictureGameBot:
     
   def create_challenge(bot):
     # Internal: Reset the password and have the bot start a random challenge
-    #   from the challenges.csv file.
+    #   from the challenges.txt file.
+    # TODO: Find out how Process runs the function.
     #   
     # Returns nothing. It starts its own mini loop.
-    "See comment"
+    bot.reset_password()
+    challenges = open("challenges.txt").read().splitlines()
+    args = sample(challenges).split("|")
+    p = Process(target=bot.run_challenge, args=(args[0], args[1], args[2:]))
+    p.start()
+    
+  def run_challenge(location, address, hints):
+    # Internal: Acts as a player and creates a post asking for the city of a
+    #   street view image from the location.
+    # 
+    # location - The answer to look for in the comments.
+    #  address - The query to use in the street view API.
+    #    hints - The hints to provide periodically until the answer is found.
+    #
+    # Returns nothing.
+    query = "https://maps.googleapis.com/maps/api/streetview?size=640x640&location={:s}&sensor=false".format(address)
+    path  = "tmp/{:s}".format(address)
+    urlretrieve(query, path)
+    link = bot.imgur.upload_image(path, title="PictureGame Challenge").link
+    newround = int(re.search("^[Round (\d+)",
+                             bot.latest_round().title,
+                             re.IGNORECASE).group(1)) + 1
+    post = bot.r_player.submit(bot.subreddit,
+      "[Round {:d}][Bot] From which iconic location is this Google Street View image?".format(newround), url=link)
+    
+    firsthint = secondhint = giveaway = False
+    while True:
+      comments = praw.helpers.flatten_tree(post.comments)
+      for comment in comments:
+        if location.lower() in comment.body.lower():
+          comment.reply("+correct")
+          sys.exit(0)
+        else:
+          if time() > (post.created_utc + 1800) and not firsthint:
+            post.add_comment(hints[0])
+            firsthint = True
+          if time() > (post.created_utc + 3600) and not secondhint:
+            post.add_comment(hints[1])
+            secondhint = True
+          if time() > (post.created_utc + 5400) and not giveaway:
+            post.add_comment(hints[2])
+            giveaway = True
     
   def win(bot, comment):
     # Internal: So somebody got the right answer. First, add a win to his flair.
@@ -189,24 +249,27 @@ class PictureGameBot:
           warning_nopost = True
         if time() > (winner_comment.created_utc + 5400):
           bot.create_challenge()
+          current_op = bot.r_player.user
       else:
-        if time() > (latest_round.created_utc + 5400) and not warning_noanswer:
-          bot.warn_noanswer(current_op)
-          warning_noanswer = True
-        if (time() > (latest_round.created_utc + 7200) or 
-            latest_round.link_flair_text.lower() == "dead round"):
-          bot.create_challenge()
-          latest_round.add_comment(dedent("""
-            This round hasn't been solved for 2 hours! The game account has
-            been reset and a new challenge has been created.
-          """)).distiguish()
-        if (winner_comment is not None and not
-            any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies)):
-          bot.win(winner_comment)
-          latest_won = latest_round
-          current_op = winner_comment.author
-          warning_nopost   = False
-          warning_noanswer = False
+        if winner_comment:
+          if not any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies):
+            bot.win(winner_comment)
+            latest_won = latest_round
+            current_op = winner_comment.author
+            warning_nopost   = False
+            warning_noanswer = False
+        else:
+          if time() > (latest_round.created_utc + 5400) and not warning_noanswer:
+            bot.warn_noanswer(current_op)
+            warning_noanswer = True
+          if (time() > (latest_round.created_utc + 7200) or 
+              latest_round.link_flair_text.lower() == "dead round"):
+            bot.create_challenge()
+            current_op = bot.r_player.user
+            latest_round.add_comment(dedent("""
+              This round hasn't been solved for 2 hours! The game account has
+              been reset and a new challenge has been created.
+            """)).distiguish()
 
 if __name__ == "__main__":
   print(PictureGameBot(subreddit="ModeratorApp").generate_password())
