@@ -209,8 +209,8 @@ class PictureGameBot:
       url=link
     )
     
-    p = Process(target=bot.run_challenge, args=(post, answer, hints))
-    p.start()
+    Process(target=bot.run_challenge, args=(post, answer, hints)).start()
+    time.sleep(15)
     
   def run_challenge(bot, post, answer, hints):
     # Internal: Acts as a player and creates a post asking for the city of a
@@ -278,72 +278,78 @@ class PictureGameBot:
                """).format(bot.player[0], newpass, curround + 1)
     bot.r_gamebot.send_message(comment.author, subject, text)
     
-    def run(bot):
-      # Public: Starts listening in the subreddit and does its thing.
-      #   My complicated logic in plain English:
-      #   
-      #   if POST IS UNSOLVED:
-      #     if POST HAS ANSWER:
-      #       send password to winner
-      #     else:
-      #       if 90 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
-      #         pm OP that he needs to provide hints before 30 minutes
-      #       if 120 MINUTES HAVE PASSED AND I WARNED YA:
-      #         set the flair to UNSOLVED
-      #         the bot will upload a new post next loop
-      #   
-      #   if POST HAS BEEN SOLVED:
-      #     if 60 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
-      #       pm OP that he needs to put a new post up before 30 minutes
-      #     if 90 MINUTES HAVE PASSED AND I WARNED YA:
-      #       the bot will upload a new post
-      #   
-      #   if POST HAS BEEN KILLED (DEAD ROUND/UNSOLVED):
-      #     the bot will upload a new post
-      # 
-      # Returns nothing, it's a looping function.
-      nopost_warning   = False # Warn if the user posts nothing for an hour.
-      noanswer_warning = False # Warn if not answered within 1.5 hours of posting.
-      current_op       = None  # The person who owns the account. (optional)
-      while True:
-        try:
-          latest_round   = bot.latest_round()
-          winner_comment = bot.winner_comment(latest_round)
-          link_flair     = latest_round.link_flair_text
-          
-          if link_flair is None or link_flair == "":
-            if winner_comment:
-              bot.win(winner_comment)
-              current_op = winner_comment.author
-              noanswer_warning = False
-              nopost_warning   = False
-            else:
-              if bot.minutes_passed(latest_round, 90) and not noanswer_warning:
-                bot.warn_noanswer(current_op)
-                noanswer_warning = True
-              if bot.minutes_passed(latest_round, 120) and noanswer_warning:
-                bot.subreddit.set_flair(latest_round, "UNSOLVED")
-              
-          if re.search(link_flair, "ROUND OVER", re.IGNORECASE):
-            if bot.minutes_passed(winner_comment, 60) and not nopost_warning:
-              bot.warn_nopost(current_op)
-              nopost_warning = True
-            if bot.minutes_passed(winner_comment, 90) and nopost_warning:
-              bot.create_challenge()
-              nopost_warning = False
-              current_op = None
-            
-          if re.search(link_flair, "DEAD ROUND|UNSOLVED", re.IGNORECASE):
-            bot.create_challenge()
+  def run(bot):
+    # Public: Starts listening in the subreddit and does its thing.
+    #   My complicated logic in plain English:
+    #   
+    #   if POST IS UNSOLVED:
+    #     if POST HAS ANSWER:
+    #       send password to winner
+    #     else:
+    #       if 90 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
+    #         pm OP that he needs to provide hints before 30 minutes
+    #       if 120 MINUTES HAVE PASSED AND I WARNED YA:
+    #         set the flair to UNSOLVED
+    #         the bot will upload a new post next loop
+    #   
+    #   or else if POST HAS BEEN SOLVED:
+    #     if 60 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
+    #       pm OP that he needs to put a new post up before 30 minutes
+    #     if 90 MINUTES HAVE PASSED AND I WARNED YA:
+    #       the bot will upload a new post
+    #   
+    #   or else if POST HAS BEEN KILLED (DEAD ROUND/UNSOLVED):
+    #     the bot will upload a new post
+    # 
+    # Returns nothing, it's a looping function.
+    nopost_warning   = False # Warn if the user posts nothing for an hour.
+    noanswer_warning = False # Warn if not answered within 1.5 hours of posting.
+    current_op       = None  # The person who owns the account. (optional)
+    while True:
+      try:
+        latest_round   = bot.latest_round()
+        winner_comment = bot.winner_comment(latest_round)
+        link_flair     = latest_round.link_flair_text
+        
+        if link_flair is None or link_flair == "":
+          if winner_comment:
+            print("New winner! PMing new password.")
+            bot.win(winner_comment)
+            current_op = winner_comment.author
             noanswer_warning = False
+            nopost_warning   = False
+          else:
+            if bot.minutes_passed(latest_round, 90) and not noanswer_warning:
+              print("Not solved for 90 minutes. Warning.")
+              bot.warn_noanswer(current_op)
+              noanswer_warning = True
+            if bot.minutes_passed(latest_round, 120) and noanswer_warning:
+              print("Not solved for 120 minutes. Setting UNSOLVED flair.")
+              bot.subreddit.set_flair(latest_round, "UNSOLVED")
+            
+        elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
+          if bot.minutes_passed(winner_comment, 60) and not nopost_warning:
+            print("Not posted for 60 minutes. Warning.")
+            bot.warn_nopost(current_op)
+            nopost_warning = True
+          if bot.minutes_passed(winner_comment, 90) and nopost_warning:
+            print("Not posted for 90 minutes. Taking over.")
+            bot.create_challenge()
+            nopost_warning = False
             current_op = None
           
-        except requests.exceptions.HTTPError as error:
-          print(repr(error))
-          time.sleep(5)
-        except praw.errors.RateLimitExceeded as error:
-          print("RateLimit: {:d} seconds".format(error.sleep_time))
-          time.sleep(error.sleep_time)
+        elif re.search(link_flair, "DEAD ROUND|UNSOLVED", re.IGNORECASE):
+          print("DEAD ROUND/UNSOLVED flair detected. Taking over.")
+          bot.create_challenge()
+          noanswer_warning = False
+          current_op = None
+        
+      except requests.exceptions.HTTPError as error:
+        print(repr(error))
+        time.sleep(5)
+      except praw.errors.RateLimitExceeded as error:
+        print("RateLimit: {:d} seconds".format(error.sleep_time))
+        time.sleep(error.sleep_time)
 
 if __name__ == "__main__":
   PictureGameBot(subreddit="ModeratorApp").run()
