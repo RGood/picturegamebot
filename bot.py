@@ -29,11 +29,12 @@ Usage:
 """
 
 import praw, os, re, base64, pyimgur, sys
-from time import time
+import time
 from textwrap import dedent
 from random import choice as sample
 from multiprocessing import Process
 from urllib.request import urlretrieve
+from requests.exceptions import HTTPError
 
 import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning) 
@@ -240,7 +241,7 @@ class PictureGameBot:
     # minutes - Number of minutes to have passed.
     # 
     # Returns a Boolean.
-    return time() > (thing.created_utc + (minutes*60))
+    return time.time() > (thing.created_utc + (minutes*60))
     
   def win(bot, comment):
     # Internal: So somebody got the right answer. First, add a win to his
@@ -284,40 +285,46 @@ class PictureGameBot:
     warning_nopost   = False # Warn if the user posts nothing for an hour.
     warning_noanswer = False # Warn if not answered within 1 hour of posting.
     while True:
-      latest_round = bot.latest_round()
-      winner_comment = bot.winner_comment(latest_round)
-      latest_round_flair = latest_round.link_flair_text
-      if (latest_round == latest_won or
-          (latest_round_flair and
-           (latest_round_flair == "round over" or
-           latest_round_flair == "dead round"))):
-        if bot.minutes_passed(winner_comment, 60) and not warning_nopost:
-          bot.warn_nopost(current_op)
-          warning_nopost = True
-        if bot.minutes_passed(winner_comment, 90):
-          bot.create_challenge()
-          current_op = bot.r_player.user
-      else:
-        if winner_comment:
-          if not any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies):
-            bot.win(winner_comment)
-            latest_won = latest_round
-            current_op = winner_comment.author
-            warning_nopost   = False
-            warning_noanswer = False
-        else:
-          if bot.minutes_passed(latest_round, 90) and not warning_noanswer:
-            bot.warn_noanswer(current_op)
-            warning_noanswer = True
-          if (bot.minutes_passed(latest_round, 120) or 
-              latest_round_flair and latest_round_flair == "dead round"):
-            bot.subreddit.set_flair(comment.submission, "DEAD ROUND")
+      try:
+        latest_round = bot.latest_round()
+        winner_comment = bot.winner_comment(latest_round)
+        latest_round_flair = latest_round.link_flair_text
+        if (latest_round == latest_won or
+            (latest_round_flair and
+             (latest_round_flair == "round over" or
+             latest_round_flair == "dead round"))):
+          if bot.minutes_passed(winner_comment, 60) and not warning_nopost:
+            bot.warn_nopost(current_op)
+            warning_nopost = True
+          if bot.minutes_passed(winner_comment, 90):
             bot.create_challenge()
             current_op = bot.r_player.user
-            latest_round.add_comment(dedent("""\
-            This round hasn't been solved for 2 hours! The game account has
-            been reset and a new challenge has been created.
-            """)).distiguish()
+        else:
+          if winner_comment:
+            if not any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies):
+              bot.win(winner_comment)
+              latest_won = latest_round
+              current_op = winner_comment.author
+              warning_nopost   = False
+              warning_noanswer = False
+          else:
+            if bot.minutes_passed(latest_round, 90) and not warning_noanswer:
+              bot.warn_noanswer(current_op)
+              warning_noanswer = True
+            if (bot.minutes_passed(latest_round, 120) or 
+                latest_round_flair and latest_round_flair == "dead round"):
+              bot.subreddit.set_flair(comment.submission, "DEAD ROUND")
+              bot.create_challenge()
+              current_op = bot.r_player.user
+              latest_round.add_comment(dedent("""\
+              This round hasn't been solved for 2 hours! The game account has
+              been reset and a new challenge has been created.
+              """)).distiguish()
+      except (requests.exceptions.HTTPError,
+              praw.errors.RateLimitExceeded) as error:
+        print repr(e)
+        print "Sleeping for {:d} seconds".format(error.sleep_time)
+        time.sleep(error.sleep_time)
 
 if __name__ == "__main__":
   PictureGameBot(subreddit="ModeratorApp").run()
