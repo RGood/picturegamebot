@@ -323,8 +323,8 @@ class PictureGameBot:
       except requests.exceptions.HTTPError as error:
         print(repr(error))
         time.sleep(5)
-      except praw.errors.RateLimitExceeded) as error:
-        print "RateLimit: {:d} seconds".format(error.sleep_time)
+      except praw.errors.RateLimitExceeded as error:
+        print("RateLimit: {:d} seconds".format(error.sleep_time))
         time.sleep(error.sleep_time)
 
 if __name__ == "__main__":
