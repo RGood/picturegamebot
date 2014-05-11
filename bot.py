@@ -3,6 +3,29 @@ PictureGameBot by /u/Mustermind
 Requested by /u/malz_ for /r/PictureGame
 
 Pretty much my magnum opus when it comes to my bot-making skills.
+
+Requirements:
+- A subreddit where only the player account can post.
+- A bot account that moderates posts (must be a moderator)
+- A player account that is passed from person to person.
+
+Assumptions:
+- The subreddit is quite active, because the player account is expected to be
+  transferred quite quickly.
+- The bot is run constantly, without too many unexpected halts (there are some
+  failsafes, but they are not meant to be used frequently).
+- All players post in the format "[Round XXXX] Text text text...". If the post
+  deviates from the format even a little, the post wouldn't be counted as a
+  round. There is no enforcing of format yet.
+
+Usage:
+1.  A player logged into the player account creates a post following the format.
+2.  If the post has a comment to which the player account's reply contains
+    "+correct", then the author of that post is the winner.
+2.5 If there is no answer within 2 hours, the bot takes over.
+3.  The winner is sent the new password and some instructions.
+3.5 If there is no post within 1.5 hours, the bot takes over.
+4.  The cycle repeats.
 """
 
 import praw, os, re, base64, pyimgur, sys
