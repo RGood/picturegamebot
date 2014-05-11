@@ -30,11 +30,11 @@ Usage:
 
 import praw, os, re, base64, pyimgur, sys
 import time
+import requests # Maybe possible to just import HTTPError?
 from textwrap import dedent
 from random import choice as sample
 from multiprocessing import Process
 from urllib.request import urlretrieve
-from requests.exceptions import HTTPError
 
 import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning) 
@@ -190,32 +190,38 @@ class PictureGameBot:
     # Returns nothing. It starts its own mini loop.
     bot.reset_password()
     challenges = open("challenges.txt").read().splitlines()
-    args = sample(challenges).split("|")
-    p = Process(target=bot.run_challenge, args=(args[0], args[1], args[2:]))
-    p.start()
+    answer, address, *hints = sample(challenges).split("|")
     
-  def run_challenge(location, address, hints):
-    # Internal: Acts as a player and creates a post asking for the city of a
-    #   street view image from the location.
-    # 
-    # location - The answer to look for in the comments.
-    #  address - The query to use in the street view API.
-    #    hints - The hints to provide periodically until the answer is found.
-    #
-    # Returns nothing.
     query = ("https://maps.googleapis.com/maps/api/streetview?size=640x640&" \
             "location={:s}&sensor=false").format(address)
     path  = "tmp/{:s}".format(address)
     urlretrieve(query, path)
     link = bot.imgur.upload_image(path, title="PictureGame Challenge").link
-    newround = int(re.search("^[Round (\d+)",
-                             bot.latest_round().title,
-                             re.IGNORECASE).group(1)) + 1
-    post = bot.r_player.submit(bot.subreddit,
-      ("[Round {:d}][Bot] From which iconic location is this Google Street-" \
-      "View image?").format(newround), url=link)
     
-    firsthint = secondhint = giveaway = False
+    newround = int(re.search(
+                     "^\[round (\d+)",
+                     bot.latest_round().title.lower()
+                  ).group(1)) + 1
+    post = bot.r_player.submit(
+      bot.subreddit,
+      ("[Round {:d}][Bot] In which iconic location was this Google Street-" \
+      "View image taken?").format(newround),
+      url=link
+    )
+    
+    p = Process(target=bot.run_challenge, args=(post, answer, hints))
+    p.start()
+    
+  def run_challenge(bot, post, answer, hints):
+    # Internal: Acts as a player and creates a post asking for the city of a
+    #   street view image from the location.
+    # 
+    #   post - To post to listen on.
+    # answer - The answer to look for.
+    #  hints - The hints to provide periodically until the answer is found.
+    #
+    # Returns nothing.
+    firsthint = secondhint = giveaway = None
     while True:
       comments = praw.helpers.flatten_tree(post.comments)
       for comment in comments:
@@ -224,14 +230,11 @@ class PictureGameBot:
           sys.exit(0)
         else:
           if bot.minutes_passed(post, 30) and not firsthint:
-            post.add_comment(hints[0])
-            firsthint = True
+            firsthint = post.add_comment(hints[0])
           if bot.minutes_passed(post, 60) and not secondhint:
-            post.add_comment(hints[1])
-            secondhint = True
+            secondhint = post.add_comment(hints[1])
           if minutes_passed(post, 90) and not giveaway:
-            post.add_comment(hints[2])
-            giveaway = True
+            giveaway = post.add_comment(hints[2])
     
   def minutes_passed(bot, thing, minutes):
     # Internal: Returns True if said minutes have passed since the creation
@@ -257,9 +260,9 @@ class PictureGameBot:
     game.
     """)).distinguish()
     newpass  = bot.reset_password()
-    curround = int(re.search("^\[Round (\d+)",
-                             comment.submission.title,
-                             re.IGNORECASE).group(1))
+    curround = int(re.search("^\[round (\d+)",
+                             comment.submission.title.lower())
+                   .group(1))
     bot.increment_flair(comment.author, curround)
     bot.subreddit.set_flair(comment.submission, "ROUND OVER")
     subject  = "Congratulations, you can post the next round!"
@@ -275,57 +278,72 @@ class PictureGameBot:
                """).format(bot.player[0], newpass, curround + 1)
     bot.r_gamebot.send_message(comment.author, subject, text)
     
-  def run(bot):
-    # Public: Starts listening in the subreddit and does its thing.
-    # TODO: More here.
-    # 
-    # Returns nothing, it's a looping function.
-    latest_won       = None  # The latest post that was answered and dealt with
-    current_op       = None  # The person who owns the account.
-    warning_nopost   = False # Warn if the user posts nothing for an hour.
-    warning_noanswer = False # Warn if not answered within 1 hour of posting.
-    while True:
-      try:
-        latest_round = bot.latest_round()
-        winner_comment = bot.winner_comment(latest_round)
-        latest_round_flair = latest_round.link_flair_text
-        if (latest_round == latest_won or
-            (latest_round_flair and
-             (latest_round_flair == "round over" or
-             latest_round_flair == "dead round"))):
-          if bot.minutes_passed(winner_comment, 60) and not warning_nopost:
-            bot.warn_nopost(current_op)
-            warning_nopost = True
-          if bot.minutes_passed(winner_comment, 90):
-            bot.create_challenge()
-            current_op = bot.r_player.user
-        else:
-          if winner_comment:
-            if not any(reply.author == bot.r_gamebot.user for reply in winner_comment.replies):
+    def run(bot):
+      # Public: Starts listening in the subreddit and does its thing.
+      #   My complicated logic in plain English:
+      #   
+      #   if POST IS UNSOLVED:
+      #     if POST HAS ANSWER:
+      #       send password to winner
+      #     else:
+      #       if 90 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
+      #         pm OP that he needs to provide hints before 30 minutes
+      #       if 120 MINUTES HAVE PASSED AND I WARNED YA:
+      #         set the flair to UNSOLVED
+      #         the bot will upload a new post next loop
+      #   
+      #   if POST HAS BEEN SOLVED:
+      #     if 60 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
+      #       pm OP that he needs to put a new post up before 30 minutes
+      #     if 90 MINUTES HAVE PASSED AND I WARNED YA:
+      #       the bot will upload a new post
+      #   
+      #   if POST HAS BEEN KILLED (DEAD ROUND/UNSOLVED):
+      #     the bot will upload a new post
+      # 
+      # Returns nothing, it's a looping function.
+      nopost_warning   = False # Warn if the user posts nothing for an hour.
+      noanswer_warning = False # Warn if not answered within 1.5 hours of posting.
+      current_op       = None  # The person who owns the account. (optional)
+      while True:
+        try:
+          latest_round   = bot.latest_round()
+          winner_comment = bot.winner_comment(latest_round)
+          link_flair     = latest_round.link_flair_text
+          
+          if link_flair is None or link_flair == "":
+            if winner_comment:
               bot.win(winner_comment)
-              latest_won = latest_round
               current_op = winner_comment.author
-              warning_nopost   = False
-              warning_noanswer = False
-          else:
-            if bot.minutes_passed(latest_round, 90) and not warning_noanswer:
-              bot.warn_noanswer(current_op)
-              warning_noanswer = True
-            if (bot.minutes_passed(latest_round, 120) or 
-                latest_round_flair and latest_round_flair == "dead round"):
-              bot.subreddit.set_flair(comment.submission, "DEAD ROUND")
+              noanswer_warning = False
+              nopost_warning   = False
+            else:
+              if bot.minutes_passed(latest_round, 90) and not noanswer_warning:
+                bot.warn_noanswer(current_op)
+                noanswer_warning = True
+              if bot.minutes_passed(latest_round, 120) and noanswer_warning:
+                bot.subreddit.set_flair(latest_round, "UNSOLVED")
+              
+          if re.search(link_flair, "ROUND OVER", re.IGNORECASE):
+            if bot.minutes_passed(winner_comment, 60) and not nopost_warning:
+              bot.warn_nopost(current_op)
+              nopost_warning = True
+            if bot.minutes_passed(winner_comment, 90) and nopost_warning:
               bot.create_challenge()
-              current_op = bot.r_player.user
-              latest_round.add_comment(dedent("""\
-              This round hasn't been solved for 2 hours! The game account has
-              been reset and a new challenge has been created.
-              """)).distiguish()
-      except requests.exceptions.HTTPError as error:
-        print(repr(error))
-        time.sleep(5)
-      except praw.errors.RateLimitExceeded as error:
-        print("RateLimit: {:d} seconds".format(error.sleep_time))
-        time.sleep(error.sleep_time)
+              nopost_warning = False
+              current_op = None
+            
+          if re.search(link_flair, "DEAD ROUND|UNSOLVED", re.IGNORECASE):
+            bot.create_challenge()
+            noanswer_warning = False
+            current_op = None
+          
+        except requests.exceptions.HTTPError as error:
+          print(repr(error))
+          time.sleep(5)
+        except praw.errors.RateLimitExceeded as error:
+          print("RateLimit: {:d} seconds".format(error.sleep_time))
+          time.sleep(error.sleep_time)
 
 if __name__ == "__main__":
   PictureGameBot(subreddit="ModeratorApp").run()
