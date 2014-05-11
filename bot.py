@@ -153,7 +153,6 @@ class PictureGameBot:
   def create_challenge(bot):
     # Internal: Reset the password and have the bot start a random challenge
     #   from the challenges.txt file.
-    # TODO: Find out how Process runs the function.
     #   
     # Returns nothing. It starts its own mini loop.
     bot.reset_password()
