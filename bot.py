@@ -171,8 +171,8 @@ class PictureGameBot:
     #    hints - The hints to provide periodically until the answer is found.
     #
     # Returns nothing.
-    query = "https://maps.googleapis.com/maps/api/streetview?size=640x640&" \
-            "location={:s}&sensor=false".format(address)
+    query = ("https://maps.googleapis.com/maps/api/streetview?size=640x640&" \
+            "location={:s}&sensor=false").format(address)
     path  = "tmp/{:s}".format(address)
     urlretrieve(query, path)
     link = bot.imgur.upload_image(path, title="PictureGame Challenge").link
@@ -180,8 +180,8 @@ class PictureGameBot:
                              bot.latest_round().title,
                              re.IGNORECASE).group(1)) + 1
     post = bot.r_player.submit(bot.subreddit,
-      "[Round {:d}][Bot] From which iconic location is this Google Street" \
-      "View image?".format(newround), url=link)
+      ("[Round {:d}][Bot] From which iconic location is this Google Street " \
+      "View image?").format(newround), url=link)
     
     firsthint = secondhint = giveaway = False
     while True:
