@@ -320,10 +320,11 @@ class PictureGameBot:
               This round hasn't been solved for 2 hours! The game account has
               been reset and a new challenge has been created.
               """)).distiguish()
-      except (requests.exceptions.HTTPError,
-              praw.errors.RateLimitExceeded) as error:
-        print repr(e)
-        print "Sleeping for {:d} seconds".format(error.sleep_time)
+      except requests.exceptions.HTTPError as error:
+        print(repr(error))
+        time.sleep(5)
+      except praw.errors.RateLimitExceeded) as error:
+        print "RateLimit: {:d} seconds".format(error.sleep_time)
         time.sleep(error.sleep_time)
 
 if __name__ == "__main__":
