@@ -1,32 +1,30 @@
-"""
-PictureGameBot by /u/Mustermind
-Requested by /u/malz_ for /r/PictureGame
-
-Pretty much my magnum opus when it comes to my bot-making skills.
-
-Requirements:
-- A subreddit where only the player account can post.
-- A bot account that moderates posts (must be a moderator)
-- A player account that is passed from person to person.
-
-Assumptions:
-- The subreddit is quite active, because the player account is expected to be
-  transferred quite quickly.
-- The bot is run constantly, without too many unexpected halts (there are some
-  failsafes, but they are not meant to be used frequently).
-- All players post in the format "[Round XXXX] Text text text...". If the post
-  deviates from the format even a little, the post wouldn't be counted as a
-  round. There is no enforcing of format yet.
-
-Usage:
-1.  A player logged into the player account creates a post following the format.
-2.  If the post has a comment to which the player account's reply contains
-    "+correct", then the author of that post is the winner.
-2.5 If there is no answer within 2 hours, the bot takes over.
-3.  The winner is sent the new password and some instructions.
-3.5 If there is no post within 1.5 hours, the bot takes over.
-4.  The cycle repeats.
-"""
+# PictureGameBot by /u/Mustermind
+# Requested by /u/malz_ for /r/PictureGame
+#
+# Pretty much my magnum opus when it comes to my bot-making skills.
+#
+# Requirements:
+# - A subreddit where only the player account can post.
+# - A bot account that moderates posts (must be a moderator)
+# - A player account that is passed from person to person.
+#
+# Assumptions:
+# - The subreddit is quite active, because the player account is expected to be
+#   transferred quite quickly.
+# - The bot is run constantly, without too many unexpected halts (there are some
+#   failsafes, but they are not meant to be used frequently).
+# - All players post in the format "[Round XXXX] Text text text...". If the post
+#   deviates from the format even a little, the post wouldn't be counted as a
+#   round. There is no enforcing of format yet.
+#
+# Usage:
+# 1.  A player logged into the player account creates a post following the format.
+# 2.  If the post has a comment to which the player account's reply contains
+#     "+correct", then the author of that post is the winner.
+# 2.5 If there is no answer within 2 hours, the bot takes over.
+# 3.  The winner is sent the new password and some instructions.
+# 3.5 If there is no post within 1.5 hours, the bot takes over.
+# 4.  The cycle repeats.
 
 import praw, os, re, base64, pyimgur, sys
 import time
@@ -46,24 +44,24 @@ class PictureGameBot:
   def __init__(bot,gamebot=(None, None), player=(None, None),
                imgurid=None, subreddit="PictureGame"):
     # Public: Logs into the bot and the player account. Sets up imgur access.
-    # 
+    #
     #   gamebot - A tuple of username and password for the bot account.
     #    player - A tuple of username and password for the picturegame account.
     #             This is used to reset the password.
     #   imgurid - The Client ID used to log into Imgur.
     # subreddit - The subreddit to listen on.
-    # 
+    #
     # Returns a PictureGameBot
     bot.gamebot   = (os.environ.get("REDDIT_USERNAME", gamebot[0]),
                      os.environ.get("REDDIT_PASSWORD", gamebot[1]))
     bot.r_gamebot = praw.Reddit("%{:s}, v%{:s}".format(bot.user_agent, bot.version))
     bot.r_gamebot.login(bot.gamebot[0], bot.gamebot[1])
-    
+
     bot.player    = (os.environ.get("PLAYER_USERNAME", player[0]),
                      os.environ.get("PLAYER_PASSWORD", player[1]))
     bot.r_player  = praw.Reddit("/r/PictureGame Account")
     bot.r_player.login(bot.player[0], bot.player[1])
-    
+
     bot.subreddit = bot.r_gamebot.get_subreddit(subreddit)
     bot.imgur     = pyimgur.Imgur(os.environ.get("IMGUR_ID", imgurid))
     
@@ -72,8 +70,7 @@ class PictureGameBot:
     #
     # Returns a praw.objects.Submission.
     new = bot.subreddit.get_new()
-    latest_post = next(post for post in new if post.title.lower().startswith("[round"))
-    return latest_post
+    return next(post for post in new if post.title.lower().startswith("[round"))
     
   def generate_password(bot):
     # Internal: Generates a random password using the wordlist.txt file in the
@@ -104,8 +101,7 @@ class PictureGameBot:
     data = {"curpass": bot.player[1], "newpass": newpass, "verpass": newpass}
     bot.r_player.request_json(url, data=data)
     bot.player = (bot.player[0], newpass)
-    bot.r_player.login(bot.player[0], newpass)
-    return newpass
+    bot.r_player.login(bot.player[0], bot.player[1])
     
   def increment_flair(bot, user, curround):
     # Internal: Add the current win to the player's flair. If the player has
@@ -137,7 +133,7 @@ class PictureGameBot:
     
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
-    #   replied with "+correct" by the r_player account.
+    #   replied with "+correct" by the r_player account).
     #   
     # post - A praw.objects.Submission object.
     #
@@ -148,12 +144,25 @@ class PictureGameBot:
           "+correct" in comment.body and not comment.is_root):
         return bot.r_gamebot.get_info(thing_id=comment.parent_id)
     
+  def already_replied(bot, comment, from=bot.r_gamebot.user):
+    # Internal: Says whether the given comment already has a reply from the
+    #   bot. This is meant to be used as a backup to avoid granting the same
+    #   player two wins.
+    #   
+    # comment - The comment to check the replies to.
+    #    from - Optional person to check for.
+    #
+    # Returns a Boolean.
+    for reply in winner_comment.replies:
+      if reply.author == bot.r_gamebot.user:
+        return True
+    
   def warn_nopost(bot, op=None):
     # Internal: Warn the account and the op, if possible, that the account will
     #   be reset if he doesn't create a post in 30 minutes.
-    #   
+    #
     # op - An optional other person who holds the account.
-    # 
+    #
     # Returns nothing.
     subject = "You haven't submitted a post!"
     text    = dedent("""\
@@ -168,9 +177,9 @@ class PictureGameBot:
   def warn_noanswer(bot, op=None):
     # Internal: Warn the account and the op, if possible, that the account will
     #   be reset if his question isn't answered in 30 minutes.
-    #   
+    #
     # op - An optional other person who holds the account.
-    # 
+    #
     # Returns nothing.
     subject = "You haven't gotten an answer!"
     text    = dedent("""\
@@ -183,51 +192,40 @@ class PictureGameBot:
       bot.r_gamebot.send_message(op, subject, text)
     bot.r_gamebot.send_message(bot.r_player.user, subject, text)
     
-  def create_challenge(bot):
+  def run_challenge(bot):
     # Internal: Reset the password and have the bot start a random challenge
     #   from the challenges.txt file.
     #   
-    # Returns nothing. It starts its own mini loop.
+    # Returns nothing.
     bot.reset_password()
     challenges = open("challenges.txt").read().splitlines()
     answer, address, *hints = sample(challenges).split("|")
-    
     query = ("https://maps.googleapis.com/maps/api/streetview?size=640x640&" \
             "location={:s}&sensor=false").format(address)
     path  = "tmp/{:s}".format(address)
     urlretrieve(query, path)
     link = bot.imgur.upload_image(path, title="PictureGame Challenge").link
-    
-    newround = int(re.search(
-                     "^\[round (\d+)",
-                     bot.latest_round().title.lower()
-                  ).group(1)) + 1
+    newround = int(re.search("^\[round (\d+)",
+                             bot.latest_round().title.lower()
+                            ).group(1)
+                   ) + 1
     post = bot.r_player.submit(
       bot.subreddit,
       ("[Round {:d}][Bot] In which iconic location was this Google Street-" \
       "View image taken?").format(newround),
       url=link
     )
-    
-    Process(target=bot.run_challenge, args=(post, answer, hints)).start()
-    time.sleep(15)
-    
-  def run_challenge(bot, post, answer, hints):
-    # Internal: Acts as a player and creates a post asking for the city of a
-    #   street view image from the location.
-    # 
-    #   post - To post to listen on.
-    # answer - The answer to look for.
-    #  hints - The hints to provide periodically until the answer is found.
-    #
-    # Returns nothing.
+
     firsthint = secondhint = giveaway = None
     while True:
+      sleep(30)
+      post.refresh()
       comments = praw.helpers.flatten_tree(post.comments)
       for comment in comments:
-        if location.lower() in comment.body.lower():
+        if answer.lower() in comment.body.lower():
+          print("CORRECT ANSWER - {:s}".format(answer))
           comment.reply("+correct")
-          sys.exit(0)
+          return
         else:
           if bot.minutes_passed(post, 30) and not firsthint:
             firsthint = post.add_comment(hints[0])
@@ -259,7 +257,7 @@ class PictureGameBot:
     soon as possible. You have been PM'd the instructions for continuing the
     game.
     """)).distinguish()
-    newpass  = bot.reset_password()
+    bot.reset_password()
     curround = int(re.search("^\[round (\d+)",
                              comment.submission.title.lower())
                    .group(1))
@@ -275,7 +273,7 @@ class PictureGameBot:
                "[Round {:d}]". Please put your post up as soon as possible.
                \n\nIf you need any help with hosting the round, do consult
                [the wiki](http://reddit.com/r/picturegame/wiki/hosting).
-               """).format(bot.player[0], newpass, curround + 1)
+               """).format(bot.player[0], bot.player[1], curround + 1)
     bot.r_gamebot.send_message(comment.author, subject, text)
     
   def run(bot):
@@ -285,7 +283,7 @@ class PictureGameBot:
     #   if POST IS UNSOLVED:
     #     if POST HAS ANSWER:
     #       send password to winner
-    #     else:
+    #     or else:
     #       if 90 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
     #         pm OP that he needs to provide hints before 30 minutes
     #       if 120 MINUTES HAVE PASSED AND I WARNED YA:
@@ -312,12 +310,12 @@ class PictureGameBot:
         link_flair     = latest_round.link_flair_text
         
         if link_flair is None or link_flair == "":
-          if winner_comment:
+          nopost_warning = False
+          if (winner_comment and not bot.already_replied(winner_comment)):
             print("New winner! PMing new password.")
             bot.win(winner_comment)
             current_op = winner_comment.author
             noanswer_warning = False
-            nopost_warning   = False
           else:
             if bot.minutes_passed(latest_round, 90) and not noanswer_warning:
               print("Not solved for 90 minutes. Warning.")
@@ -326,7 +324,11 @@ class PictureGameBot:
             if bot.minutes_passed(latest_round, 120) and noanswer_warning:
               print("Not solved for 120 minutes. Setting UNSOLVED flair.")
               bot.subreddit.set_flair(latest_round, "UNSOLVED")
-            
+              latest_round.add_comment(dedent("""\
+              This post has not been marked as solved for 2 hours. The password
+              of the account has been reset and a new challenge has been
+              created.
+              """)
         elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
           if bot.minutes_passed(winner_comment, 60) and not nopost_warning:
             print("Not posted for 60 minutes. Warning.")
@@ -334,22 +336,30 @@ class PictureGameBot:
             nopost_warning = True
           if bot.minutes_passed(winner_comment, 90) and nopost_warning:
             print("Not posted for 90 minutes. Taking over.")
-            bot.create_challenge()
+            bot.run_challenge()
             nopost_warning = False
             current_op = None
-          
         elif re.search(link_flair, "DEAD ROUND|UNSOLVED", re.IGNORECASE):
           print("DEAD ROUND/UNSOLVED flair detected. Taking over.")
-          bot.create_challenge()
+          bot.run_challenge()
           noanswer_warning = False
           current_op = None
         
       except requests.exceptions.HTTPError as error:
-        print(repr(error))
-        time.sleep(5)
+        if error.code in [429, 500, 502, 503, 504]:
+          print(("Reddit is down (error {:d})," \
+                "sleeping for 5 minutes").format(error.code))
+          time.sleep(300)
+          pass
+        else:
+          raise
       except praw.errors.RateLimitExceeded as error:
-        print("RateLimit: {:d} seconds".format(error.sleep_time))
+        print("Ratelimit: {:d} seconds".format(error.sleep_time))
         time.sleep(error.sleep_time)
+        pass
+      except KeyboardInterrupt:
+        print("CURRENT PASSWORD: {:s}".format(bot.player[1]))
+        sys.exit(0)
 
 if __name__ == "__main__":
   PictureGameBot(subreddit="ModeratorApp").run()
