@@ -321,6 +321,7 @@ class PictureGameBot:
             if bot.minutes_passed(latest_round, 120) and noanswer_warning:
               print("Not solved for 120 minutes. Setting UNSOLVED flair.")
               bot.subreddit.set_flair(latest_round, "UNSOLVED")
+              noanswer_warning = False
               latest_round.add_comment(dedent("""\
               This post has not been marked as solved for 2 hours. The password
               of the account has been reset and a new challenge has been
