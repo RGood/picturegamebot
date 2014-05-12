@@ -16,26 +16,22 @@
 # - All players post in the format "[Round XXXX] Text text text...". If the post
 #   deviates from the format even a little, the post wouldn't be counted as a
 #   round. There is no enforcing of format yet.
-#
-# Usage:
-# 1.  A player logged into the player account creates a post following the format.
-# 2.  If the post has a comment to which the player account's reply contains
-#     "+correct", then the author of that post is the winner.
-# 2.5 If there is no answer within 2 hours, the bot takes over.
-# 3.  The winner is sent the new password and some instructions.
-# 3.5 If there is no post within 1.5 hours, the bot takes over.
-# 4.  The cycle repeats.
 
-import praw, os, re, base64, pyimgur, sys
+import os
+import re
+import sys
+import praw
 import time
-import requests # Maybe possible to just import HTTPError?
+import base64
+import pyimgur
+import requests
 from textwrap import dedent
 from random import choice as sample
 from multiprocessing import Process
 from urllib.request import urlretrieve
 
 import warnings
-warnings.filterwarnings("ignore", category=ResourceWarning) 
+warnings.filterwarnings("ignore", category=ResourceWarning)
 
 class PictureGameBot:
   version = "0.3"
@@ -56,12 +52,12 @@ class PictureGameBot:
                      os.environ.get("REDDIT_PASSWORD", gamebot[1]))
     bot.r_gamebot = praw.Reddit("%{:s}, v%{:s}".format(bot.user_agent, bot.version))
     bot.r_gamebot.login(bot.gamebot[0], bot.gamebot[1])
-
+    
     bot.player    = (os.environ.get("PLAYER_USERNAME", player[0]),
                      os.environ.get("PLAYER_PASSWORD", player[1]))
     bot.r_player  = praw.Reddit("/r/PictureGame Account")
     bot.r_player.login(bot.player[0], bot.player[1])
-
+    
     bot.subreddit = bot.r_gamebot.get_subreddit(subreddit)
     bot.imgur     = pyimgur.Imgur(os.environ.get("IMGUR_ID", imgurid))
     
@@ -86,7 +82,7 @@ class PictureGameBot:
   def reset_password(bot, password=None):
     # Internal: Resets the password of the player account, determined by
     #   bot.r_player and logs into the account with the new password.
-    # 
+    #
     # TODO: Maybe a persistent storage like Redis.
     #
     # Returns the new password.
@@ -134,14 +130,15 @@ class PictureGameBot:
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
     #   replied with "+correct" by the r_player account).
-    #   
+    #
     # post - A praw.objects.Submission object.
     #
     # Returns a praw.objects.Comment.
     comments = praw.helpers.flatten_tree(post.comments)
     for comment in comments:
       if (comment.author == bot.r_player.user and
-          "+correct" in comment.body and not comment.is_root):
+          "+correct" in comment.body and
+          not comment.is_root):
         return bot.r_gamebot.get_info(thing_id=comment.parent_id)
     
   def already_replied(bot, comment, from=bot.r_gamebot.user):
