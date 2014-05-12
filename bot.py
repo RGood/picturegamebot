@@ -47,7 +47,7 @@ class PictureGameBot:
     #   imgurid - The Client ID used to log into Imgur.
     # subreddit - The subreddit to listen on.
     #
-    # Returns a PictureGameBot
+    # Returns an instance of PictureGameBot.
     bot.gamebot   = (os.environ.get("REDDIT_USERNAME", gamebot[0]),
                      os.environ.get("REDDIT_PASSWORD", gamebot[1]))
     bot.r_gamebot = praw.Reddit("%{:s}, v%{:s}".format(bot.user_agent, bot.version))
@@ -280,6 +280,7 @@ class PictureGameBot:
     #   if POST IS UNSOLVED:
     #     if POST HAS ANSWER:
     #       send password to winner
+    #       chill for a bit
     #     or else:
     #       if 90 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
     #         pm OP that he needs to provide hints before 30 minutes
@@ -313,6 +314,7 @@ class PictureGameBot:
             bot.win(winner_comment)
             current_op = winner_comment.author
             noanswer_warning = False
+            sleep(60)
           else:
             if bot.minutes_passed(latest_round, 90) and not noanswer_warning:
               print("Not solved for 90 minutes. Warning.")
