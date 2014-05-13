@@ -25,10 +25,12 @@ import time
 import base64
 import pyimgur
 import requests
+from html import unescape
 from textwrap import dedent
-from random import choice as sample
 from multiprocessing import Process
+from random import choice as sample
 from urllib.request import urlretrieve
+from xml.etree import ElementTree as ET
 
 import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning)
@@ -50,7 +52,8 @@ class PictureGameBot:
     # Returns an instance of PictureGameBot.
     bot.gamebot   = (os.environ.get("REDDIT_USERNAME", gamebot[0]),
                      os.environ.get("REDDIT_PASSWORD", gamebot[1]))
-    bot.r_gamebot = praw.Reddit("%{:s}, v%{:s}".format(bot.user_agent, bot.version))
+    bot.r_gamebot = praw.Reddit("%{:s}, v%{:s}".format(bot.user_agent,
+                                                       bot.version))
     bot.r_gamebot.login(bot.gamebot[0], bot.gamebot[1])
     
     bot.player    = (os.environ.get("PLAYER_USERNAME", player[0]),
@@ -75,7 +78,9 @@ class PictureGameBot:
     # Returns a random string of passwords.
     try:
       words = open("wordlist.txt").read().splitlines()
-      return "{:s}-{:s}-{:s}".format(sample(words), sample(words), sample(words))
+      return "{:s}-{:s}-{:s}".format(sample(words),
+                                     sample(words),
+                                     sample(words))
     except IOError:
       return base64.urlsafe_b64encode(os.urandom(30))
     
@@ -112,7 +117,8 @@ class PictureGameBot:
     current_flair = bot.subreddit.get_flair(user)
     if current_flair is not None:
       flair_text    = current_flair["flair_text"]
-      wins_format   = re.search("^(\d+) wins?$", str(flair_text), re.IGNORECASE)
+      wins_format   = re.search("^(\d+) wins?$", str(flair_text),
+                                re.IGNORECASE)
       rounds_format = re.findall("(\d+)", str(flair_text), re.IGNORECASE)
       
       if flair_text == "" or flair_text == None:
@@ -125,7 +131,8 @@ class PictureGameBot:
         if rounds >= 7:
           bot.subreddit.set_flair(user, "{:d} wins".format(rounds + 1))
         else:
-          bot.subreddit.set_flair(user, "{:s}, {:d}".format(flair_text, curround))
+          bot.subreddit.set_flair(user,
+                                  "{:s}, {:d}".format(flair_text, curround))
     
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
@@ -141,13 +148,12 @@ class PictureGameBot:
           not comment.is_root):
         return bot.r_gamebot.get_info(thing_id=comment.parent_id)
     
-  def already_replied(bot, comment, from=bot.r_gamebot.user):
+  def already_replied(bot, comment):
     # Internal: Says whether the given comment already has a reply from the
     #   bot. This is meant to be used as a backup to avoid granting the same
     #   player two wins.
     #   
     # comment - The comment to check the replies to.
-    #    from - Optional person to check for.
     #
     # Returns a Boolean.
     for reply in winner_comment.replies:
@@ -260,6 +266,7 @@ class PictureGameBot:
                    .group(1))
     bot.increment_flair(comment.author, curround)
     bot.subreddit.set_flair(comment.submission, "ROUND OVER")
+    bot.append_to_leaderboard(comment.author, curround)
     subject  = "Congratulations, you can post the next round!"
     text     = dedent("""\
                The password for /u/{:s} is `{:s}`.
@@ -272,6 +279,60 @@ class PictureGameBot:
                [the wiki](http://reddit.com/r/picturegame/wiki/hosting).
                """).format(bot.player[0], bot.player[1], curround + 1)
     bot.r_gamebot.send_message(comment.author, subject, text)
+    
+  def parse_leaderboard(bot, page="leaderboard"):
+    # Internal: Converts the table from the /wiki/leaderboard page
+    #   and converts it into a dict. It uses the html content rather than the
+    #   markdown content, since it's rendered and a bit more predictable.
+    #
+    # page - Optional page to use instead of the default.
+    #
+    # Returns a dict.
+    content = bot.subreddit.get_wiki_page(page).content_html
+    table = ET.XML(unescape(content)).find("table").find("tbody")
+    return dict((row[1].text, row[2].text.split(", ")) for row in iter(table))
+    
+  def create_leaderboard(bot, board):
+    # Internal: Use the given dict to construct a table in markdown along with
+    #   ranks and win counts for each player. The dict must be in the format:
+    #   {'user1': ['1', '2', '3', ...], 'user2': ['4', '5', ...], ...}
+    #
+    # board - The dict to use to create the table
+    #
+    # Returns a String.
+    table = "Rank | Username | Rounds won | Total |\n" \
+            "|:--:|:--:|:--|:--:|:--:|\n"
+    
+    inv_map = {}
+    for user, rounds in board.items():
+      wins = len(rounds)
+      inv_map[wins] = inv_map.get(wins, [])
+      inv_map[wins].append(user)
+    
+    for rank, wins in enumerate(sorted(inv_map, reverse=True)):
+      for user in inv_map[wins]:
+        table += "{rank} | {user} | {rounds} | {total}\n".format(
+            rank = rank+1, user = user,
+            rounds = ", ".join(board[user]), total = wins)
+    
+    return table
+    
+  def append_to_leaderboard(bot, user, roundno, page="leaderboard"):
+    # Internal: Add a user's win to the wiki page, making sure to
+    #   add to the win count and change the ranking.
+    #
+    #    user - A Redditor object to add to the leaderboard.
+    # roundno - The round that the user just won.
+    #    page - The wiki page to edit.
+    #
+    # Returns nothing.
+    board = bot.parse_leaderboard()
+    board[user.name] = board.get(user.name, [])
+    board[user.name].append(str(roundno))
+    markdown = bot.create_leaderboard(board)
+    bot.subreddit.edit_wiki_page(page, markdown,
+                                 reason = "{:s} won Round {:d}".format(
+                                     user.name, roundno))
     
   def run(bot):
     # Public: Starts listening in the subreddit and does its thing.
@@ -328,7 +389,7 @@ class PictureGameBot:
               This post has not been marked as solved for 2 hours. The password
               of the account has been reset and a new challenge has been
               created.
-              """)
+              """))
         elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
           if bot.minutes_passed(winner_comment, 60) and not nopost_warning:
             print("Not posted for 60 minutes. Warning.")
@@ -362,4 +423,5 @@ class PictureGameBot:
         sys.exit(0)
 
 if __name__ == "__main__":
-  PictureGameBot(subreddit="ModeratorApp").run()
+  picturegame = PictureGameBot(subreddit="PictureGame")
+  print(picturegame.create_leaderboard(picturegame.parse_leaderboard()))
