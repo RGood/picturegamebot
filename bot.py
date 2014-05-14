@@ -342,7 +342,8 @@ class PictureGameBot:
     board[user.name] = board.get(user.name, [])
     board[user.name].append(str(roundno))
     markdown = bot.create_leaderboard(board)
-    bot.subreddit.edit_wiki_page(page, markdown,
+    bot.subreddit.edit_wiki_page(page,
+                                 "# Leaderboard\n{:s}".format(markdown),
                                  reason = "{:s} won Round {:d}".format(
                                      user.name, roundno))
     
