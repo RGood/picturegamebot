@@ -27,7 +27,6 @@ import pyimgur
 import requests
 from html import unescape
 from textwrap import dedent
-from multiprocessing import Process
 from random import choice as sample
 from urllib.request import urlretrieve
 from xml.etree import ElementTree as ET
@@ -107,6 +106,7 @@ class PictureGameBot:
     # Internal: Add the current win to the player's flair. If the player has
     #   more than 7 wins, sets the flair to "X wins", else adds the current
     #   round number to the flair.
+    #
     # TODO: Deal with "Fair Play Award"
     #
     #     user - A praw.objects.Redditor object.
