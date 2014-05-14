@@ -86,7 +86,7 @@ class PictureGameBot:
     # Internal: Resets the password of the player account, determined by
     #   bot.r_player and logs into the account with the new password.
     #
-    # TODO: Maybe a persistent storage like Redis.
+    # TODO: Maybe a persistent storage like Redis or just plain ol' FS.
     #
     # Returns the new password.
     newpass = password or bot.generate_password()
@@ -108,6 +108,7 @@ class PictureGameBot:
     #   round number to the flair.
     #
     # TODO: Deal with "Fair Play Award"
+    # FIXME: re.sub() is a thing.
     #
     #     user - A praw.objects.Redditor object.
     # curround - The round number that the user just won.
@@ -115,23 +116,18 @@ class PictureGameBot:
     # Returns nothing.
     current_flair = bot.subreddit.get_flair(user)
     if current_flair is not None:
-      flair_text    = current_flair["flair_text"]
-      wins_format   = re.search("^(\d+) wins?$", str(flair_text),
-                                re.IGNORECASE)
-      rounds_format = re.findall("(\d+)", str(flair_text), re.IGNORECASE)
-      
-      if flair_text == "" or flair_text == None:
+      text = current_flair["flair_text"]
+      if text == "" or text is None:
         bot.subreddit.set_flair(user, "Round {:d}".format(curround))
-      elif wins_format:
-        wins = int(wins_format.group(1))
+      elif "wins" in text.lower():
+        wins = re.search("(\d)", text).group(1)
         bot.subreddit.set_flair(user, "{:d} wins".format(wins + 1))
-      elif rounds_format:
-        rounds = len(rounds_format)
+      elif "round" in text.lower():
+        rounds = len(re.findall("(\d)", text))
         if rounds >= 7:
           bot.subreddit.set_flair(user, "{:d} wins".format(rounds + 1))
         else:
-          bot.subreddit.set_flair(user,
-                                  "{:s}, {:d}".format(flair_text, curround))
+          bot.subreddit.set_flair(user, "{:s}, {:d}".format(text, curround))
     
   def winner_comment(bot, post):
     # Internal: Get the comment that gave the correct answer (because it was
