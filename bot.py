@@ -45,7 +45,6 @@ class PictureGameBot:
     #
     #   gamebot - A tuple of username and password for the bot account.
     #    player - A tuple of username and password for the picturegame account.
-    #             This is used to reset the password.
     #   imgurid - The Client ID used to log into Imgur.
     # subreddit - The subreddit to listen on.
     #
