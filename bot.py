@@ -195,9 +195,11 @@ class PictureGameBot:
       bot.r_gamebot.send_message(op, subject, text)
     bot.r_gamebot.send_message(bot.r_player.user, subject, text)
     
-  def run_challenge(bot):
+  def create_challenge(bot, run=True):
     # Internal: Reset the password and have the bot start a random challenge
     #   from the challenges.txt file.
+    #
+    # run - Whether or not to run the challenge after creating it.
     #   
     # Returns nothing.
     bot.reset_password()
@@ -209,19 +211,28 @@ class PictureGameBot:
     urlretrieve(query, path)
     link = bot.imgur.upload_image(path, title="PictureGame Challenge").link
     newround = int(re.search("^\[round (\d+)",
-                             bot.latest_round().title.lower()
-                            ).group(1)
-                   ) + 1
+                             bot.latest_round().title.lower()).group(1)) + 1
     post = bot.r_player.submit(
-      bot.subreddit,
-      ("[Round {:d}][Bot] In which iconic location was this Google Street-" \
-      "View image taken?").format(newround),
-      url=link
-    )
-
+        bot.subreddit,
+        ("[Round {:d}] [Bot] In which iconic location was this Google Street-" \
+        "View image taken?").format(newround),
+        url=link)
+    if run:
+      bot.run_challenge(post, answer)
+    else:
+      return (post, answer)
+    
+  def run_challenge(bot, post, answer):
+    # Internal: Runs the challenge given on the Submission object. When the
+    #   answer was found somewhere in the comments, the bot replies with
+    #   "+correct" and ends itself.
+    #
+    #   post - A praw.objects.Submission object to run on.
+    # answer - A string to look for in the comments.
+    #   
+    # Returns nothing.
     firsthint = secondhint = giveaway = None
     while True:
-      sleep(30)
       post.refresh()
       comments = praw.helpers.flatten_tree(post.comments)
       for comment in comments:
@@ -236,6 +247,7 @@ class PictureGameBot:
             secondhint = post.add_comment(hints[1])
           if minutes_passed(post, 90) and not giveaway:
             giveaway = post.add_comment(hints[2])
+      sleep(15)
     
   def minutes_passed(bot, thing, minutes):
     # Internal: Returns True if said minutes have passed since the creation
@@ -397,12 +409,12 @@ class PictureGameBot:
             nopost_warning = True
           if bot.minutes_passed(winner_comment, 90) and nopost_warning:
             print("Not posted for 90 minutes. Taking over.")
-            bot.run_challenge()
+            bot.create_challenge()
             nopost_warning = False
             current_op = None
         elif re.search(link_flair, "DEAD ROUND|UNSOLVED", re.IGNORECASE):
           print("DEAD ROUND/UNSOLVED flair detected. Taking over.")
-          bot.run_challenge()
+          bot.create_challenge()
           noanswer_warning = False
           current_op = None
         
