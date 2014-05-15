@@ -86,7 +86,8 @@ class PictureGameBot:
     # Internal: Resets the password of the player account, determined by
     #   bot.r_player and logs into the account with the new password.
     #
-    # TODO: Maybe a persistent storage like Redis or just plain ol' FS.
+    # NOTE: The current password is sent via modmail and is also stored
+    #   by Heroku's logs (`heroku logs`) in case it goes down.
     #
     # Returns the new password.
     newpass = password or bot.generate_password()
@@ -106,23 +107,28 @@ class PictureGameBot:
     # Internal: Add the current win to the player's flair. If the player has
     #   more than 7 wins, sets the flair to "X wins", else adds the current
     #   round number to the flair.
-    #
-    # TODO: Deal with "Fair Play Award"
-    # FIXME: re.sub() is a thing.
+    #   
+    # NOTE: Any additional flair (e.g. "Fair Play Award" or "Official
+    # PictureGame Critic") will only work with the wins format. For example,
+    # the mods must change "Round 1234, 2345" to "2 wins" before adding a
+    # "Difficult Question Asker" to the end of it. 
     #
     #     user - A praw.objects.Redditor object.
     # curround - The round number that the user just won.
     #
     # Returns nothing.
-    current_flair = bot.subreddit.get_flair(user)
-    if current_flair is not None:
-      text = current_flair["flair_text"]
+    flair = bot.subreddit.get_flair(user)
+    if flair is not None:
+      text = flair["flair_text"]
       if text == "" or text is None:
         bot.subreddit.set_flair(user, "Round {:d}".format(curround))
-      elif "wins" in text.lower():
-        wins = re.search("(\d)", text).group(1)
-        bot.subreddit.set_flair(user, "{:d} wins".format(wins + 1))
-      elif "round" in text.lower():
+      elif re.search("\d wins", text):
+        repl = re.sub(
+            "(\d) wins",
+            lambda m: "{:d} wins".format(int(m.group(1)) + 1),
+            text)
+        bot.subreddit.set_flair(user, repl)
+      elif re.search("^Round", text):
         rounds = len(re.findall("(\d)", text))
         if rounds >= 7:
           bot.subreddit.set_flair(user, "{:d} wins".format(rounds + 1))
@@ -355,7 +361,8 @@ class PictureGameBot:
     #         pm OP that he needs to provide hints before 30 minutes
     #       if 120 MINUTES HAVE PASSED AND I WARNED YA:
     #         set the flair to UNSOLVED
-    #         the bot will upload a new post next loop
+    #         chill for a bit
+    #         (the bot will upload a new post next loop)
     #   
     #   or else if POST HAS BEEN SOLVED:
     #     if 60 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
@@ -393,10 +400,10 @@ class PictureGameBot:
               print("Not solved for 120 minutes. Setting UNSOLVED flair.")
               bot.subreddit.set_flair(latest_round, "UNSOLVED")
               noanswer_warning = False
+              time.sleep(30)
               latest_round.add_comment(dedent("""\
               This post has not been marked as solved for 2 hours. The password
-              of the account has been reset and a new challenge has been
-              created.
+              of the account has been reset and a new challenge will be created.
               """))
         elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
           if bot.minutes_passed(winner_comment, 60) and not nopost_warning:
