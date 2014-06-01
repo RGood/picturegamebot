@@ -1,12 +1,14 @@
+# Application-Specific
+.env
+tmp/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 
 # C extensions
 *.so
-
-# dotenv
-.env
 
 # Distribution / packaging
 .Python
@@ -15,7 +17,6 @@ build/
 develop-eggs/
 dist/
 eggs/
-lib/
 lib64/
 parts/
 sdist/

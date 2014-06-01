@@ -1,21 +1,23 @@
-# PictureGameBot by /u/Mustermind
-# Requested by /u/malz_ for /r/PictureGame
-#
-# Pretty much my magnum opus when it comes to my bot-making skills.
-#
-# Requirements:
-# - A subreddit where only the player account can post.
-# - A bot account that moderates posts (must be a moderator)
-# - A player account that is passed from person to person.
-#
-# Assumptions:
-# - The subreddit is quite active, because the player account is expected to be
-#   transferred quite quickly.
-# - The bot is run constantly, without too many unexpected halts (there are
-#   some failsafes, but they are not meant to be used frequently).
-# - All players post in the format "[Round XXXX] Lorem Ipsum Dolor...". If the
-#   post deviates from the format even a little, the post wouldn't be counted
-#   as a round. There is no enforcing of format yet.
+"""
+PictureGameBot by /u/Mustermind
+Requested by /u/malz_ for /r/PictureGame
+
+Pretty much my magnum opus when it comes to my bot-making skills.
+
+Requirements:
+- A subreddit where only the player account can post.
+- A bot account that moderates posts (must be a moderator)
+- A player account that is passed from person to person.
+
+Assumptions:
+- The subreddit is quite active, because the player account is expected to be
+  transferred quite quickly.
+- The bot is run constantly, without too many unexpected halts (there are
+  some failsafes, but they are not meant to be used frequently).
+- All players post in the format "[Round XXXX] Lorem Ipsum Dolor...". If the
+  post deviates from the format even a little, the post wouldn't be counted
+  as a round. There is no enforcing of format yet.
+"""
 
 import os
 import re
@@ -25,21 +27,78 @@ import time
 import base64
 import pyimgur
 import requests
-from html import unescape
 from textwrap import dedent
 from random import choice as sample
 from urllib.request import urlretrieve
-from xml.etree import ElementTree as ET
 
 import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning)
+
+from picturegamebot.leaderboard import Leaderboard
+
+
+def generate_password():
+    """
+    Internal: Generates a random password using the wordlist.txt file in
+      the same directory. If the file was not found, use a random string
+      instead.
+
+    Returns a random string of passwords.
+    """
+    try:
+        words = open("wordlist.txt").read().splitlines()
+        return "{:s}-{:s}-{:s}".format(sample(words),
+                                       sample(words),
+                                       sample(words))
+    except IOError:
+        return base64.urlsafe_b64encode(os.urandom(30))
+
+def minutes_passed(thing, minutes):
+    """
+    Internal: Returns True if said minutes have passed since the creation
+      of said thing.
+
+    thing   - An object with a 'created_utc' attribute.
+    minutes - Number of minutes to have passed.
+ 
+    Returns a Boolean.
+    """
+    return time.time() > (thing.created_utc + (minutes*60))
+  
+def run_challenge(post, answer, hints):
+    """
+    Internal: Runs the challenge given on the Submission object. When the
+      answer was found somewhere in the comments, the bot replies with
+      "+correct" and ends itself.
+
+    post   - A praw.objects.Submission object to run on.
+    answer - A string to look for in the comments.
+
+    Returns nothing.
+    """
+    firsthint = secondhint = giveaway = None
+    while True:
+        post.refresh()
+        comments = praw.helpers.flatten_tree(post.comments)
+        for comment in comments:
+            if answer.lower() in comment.body.lower():
+                print("CORRECT ANSWER - {:s}".format(answer))
+                comment.reply("+correct")
+                return
+        if minutes_passed(post, 30) and not firsthint:
+            firsthint = post.add_comment(hints[0])
+        if minutes_passed(post, 60) and not secondhint:
+            secondhint = post.add_comment(hints[1])
+        if minutes_passed(post, 90) and not giveaway:
+            giveaway = post.add_comment(hints[2])
+        time.sleep(15)
 
 
 class PictureGameBot:
     """
     Main runner for the picturegamebot.
     """
-    version = "0.4"
+    version = "0.5"
     user_agent = "/r/PictureGame Bot"
 
     def __init__(self, gamebot=(None, None), player=(None, None),
@@ -70,6 +129,8 @@ class PictureGameBot:
         self.subreddit = self.r_gamebot.get_subreddit(subreddit)
         self.imgur = pyimgur.Imgur(os.environ.get("IMGUR_ID", imgurid))
 
+        self.leaderboard = Leaderboard(self.subreddit)
+
     def latest_round(self):
         """
         Internal: Gets the top post in a subreddit that starts with "[Round".
@@ -79,22 +140,6 @@ class PictureGameBot:
         new = self.subreddit.get_new()
         return next(post for post in new if re.search(r"^\[Round", post.title,
                                                       re.IGNORECASE))
-
-    def generate_password(self):
-        """
-        Internal: Generates a random password using the wordlist.txt file in
-          the same directory. If the file was not found, use a random string
-          instead.
-
-        Returns a random string of passwords.
-        """
-        try:
-            words = open("wordlist.txt").read().splitlines()
-            return "{:s}-{:s}-{:s}".format(sample(words),
-                                           sample(words),
-                                           sample(words))
-        except IOError:
-            return base64.urlsafe_b64encode(os.urandom(30))
 
     def reset_password(self, password=None):
         """
@@ -106,7 +151,7 @@ class PictureGameBot:
 
         Returns the new password.
         """
-        newpass = password or self.generate_password()
+        newpass = password or generate_password()
         print("NEW PASSWORD: {:s}".format(newpass))
         self.r_gamebot.send_message(
             self.subreddit,
@@ -131,7 +176,7 @@ class PictureGameBot:
           example, the mods must change "Round 1234, 2345" to "2 wins" before
           adding a "Difficult Question Asker" to the end of it.
 
-            user - A praw.objects.Redditor.
+        user     - A praw.objects.Redditor.
         curround - The round number that the user just won.
 
         Returns nothing.
@@ -187,12 +232,12 @@ class PictureGameBot:
             if reply.author == self.r_gamebot.user:
                 return True
 
-    def warn_nopost(self, op=None):
+    def warn_nopost(self, op_=None):
         """
         Internal: Warn the account and the op, if possible, that the account
           will be reset if he doesn't create a post in 30 minutes.
 
-        op - An optional other person who holds the account.
+        op_ - An optional other person who holds the account.
 
         Returns nothing.
         """
@@ -202,16 +247,16 @@ class PictureGameBot:
                round. Please upload a post in the next 30 minutes, or
                else your account will be reset.
                """)
-        if op:
-            self.r_gamebot.send_message(op, subject, text)
+        if op_:
+            self.r_gamebot.send_message(op_, subject, text)
         self.r_gamebot.send_message(self.r_player.user, subject, text)
 
-    def warn_noanswer(self, op=None):
+    def warn_noanswer(self, op_=None):
         """
         Internal: Warn the account and the op, if possible, that the account
           will be reset if his question isn't answered in 30 minutes.
 
-        op - An optional other person who holds the account.
+        op_ - An optional other person who holds the account.
 
         Returns nothing.
         """
@@ -222,8 +267,8 @@ class PictureGameBot:
                minutes, the account will be reset. Try giving hints, or if
                you already gave out a few hints, try and make them easier.
                """)
-        if op:
-            self.r_gamebot.send_message(op, subject, text)
+        if op_:
+            self.r_gamebot.send_message(op_, subject, text)
         self.r_gamebot.send_message(self.r_player.user, subject, text)
 
     def create_challenge(self, run=True):
@@ -252,50 +297,9 @@ class PictureGameBot:
              " Street-View image taken?").format(newround),
             url=url)
         if run:
-            self.run_challenge(post, answer, hints)
+            run_challenge(post, answer, hints)
         else:
             return (post, answer, hints)
-
-    def run_challenge(self, post, answer, hints):
-        """
-        Internal: Runs the challenge given on the Submission object. When the
-          answer was found somewhere in the comments, the bot replies with
-          "+correct" and ends itself.
-
-          post - A praw.objects.Submission object to run on.
-        answer - A string to look for in the comments.
-
-        Returns nothing.
-        """
-        firsthint = secondhint = giveaway = None
-        while True:
-            post.refresh()
-            comments = praw.helpers.flatten_tree(post.comments)
-            for comment in comments:
-                if answer.lower() in comment.body.lower():
-                    print("CORRECT ANSWER - {:s}".format(answer))
-                    comment.reply("+correct")
-                    return
-                else:
-                    if self.minutes_passed(post, 30) and not firsthint:
-                        firsthint = post.add_comment(hints[0])
-                    if self.minutes_passed(post, 60) and not secondhint:
-                        secondhint = post.add_comment(hints[1])
-                    if self.minutes_passed(post, 90) and not giveaway:
-                        giveaway = post.add_comment(hints[2])
-            time.sleep(15)
-
-    def minutes_passed(self, thing, minutes):
-        """
-        Internal: Returns True if said minutes have passed since the creation
-          of said thing.
-
-          thing - An object with a 'created_utc' attribute.
-        minutes - Number of minutes to have passed.
-
-        Returns a Boolean.
-        """
-        return time.time() > (thing.created_utc + (minutes*60))
 
     def win(self, comment):
         """
@@ -318,7 +322,6 @@ class PictureGameBot:
                        .group(1))
         self.increment_flair(comment.author, curround)
         self.subreddit.set_flair(comment.submission, "ROUND OVER")
-        self.append_to_leaderboard(comment.author, curround)
         subject = "Congratulations, you can post the next round!"
         text = dedent("""\
                The password for /u/{:s} is `{:s}`.
@@ -331,70 +334,7 @@ class PictureGameBot:
                [the wiki](http://reddit.com/r/picturegame/wiki/hosting).
                """).format(self.player[0], self.player[1], curround + 1)
         self.r_gamebot.send_message(comment.author, subject, text)
-
-    def parse_leaderboard(self, page="leaderboard"):
-        """
-        Internal: Converts the table from the /wiki/leaderboard page
-          and converts it into a dict. It uses the html content rather than
-          the markdown content, since it's rendered and a bit more
-          predictable.
-
-        page - Optional page to use instead of the default.
-
-        Returns a dict.
-        """
-        content = self.subreddit.get_wiki_page(page).content_html
-        table = ET.XML(unescape(content)).find("table").find("tbody")
-        return dict(
-            (row[1].text, row[2].text.split(", ")) for row in iter(table))
-
-    def create_leaderboard(self, board):
-        """
-        Internal: Use the given dict to construct a table in markdown along
-          with ranks and win counts for each player. The dict must be in the
-          format:
-          {'user1': ['1', '2', '3', ...], 'user2': ['4', '5', ...], ...}
-
-        board - The dict to use to create the table
-
-        Returns a String.
-        """
-        table = "Rank | Username | Rounds won | Total |\n" \
-                "|:--:|:--:|:--|:--:|:--:|\n"
-
-        inv_map = {}
-        for user, rounds in board.items():
-            wins = len(rounds)
-            inv_map[wins] = inv_map.get(wins, [])
-            inv_map[wins].append(user)
-
-        for rank, wins in enumerate(sorted(inv_map, reverse=True)):
-            for user in inv_map[wins]:
-                table += "{rank} | {user} | {rounds} | {total}\n".format(
-                    rank=rank + 1, user=user,
-                    rounds=", ".join(board[user]), total=wins)
-
-        return table
-
-    def append_to_leaderboard(self, user, roundno, page="leaderboard"):
-        """
-        Internal: Add a user's win to the wiki page, making sure to
-          add to the win count and change the ranking.
-
-           user - A Redditor object to add to the leaderboard.
-        roundno - The round that the user just won.
-           page - The wiki page to edit.
-
-        Returns nothing.
-        """
-        board = self.parse_leaderboard()
-        board[user.name] = board.get(user.name, [])
-        board[user.name].append(str(roundno))
-        markdown = self.create_leaderboard(board)
-        self.subreddit.edit_wiki_page(page,
-                                      "# Leaderboard\n{:s}".format(markdown),
-                                      reason="{:s} won Round {:d}".format(
-                                          user.name, roundno))
+        self.leaderboard.add(comment.author, curround, publish=True)
 
     def run(self):
         """
@@ -443,12 +383,12 @@ class PictureGameBot:
                         noanswer_warning = False
                         time.sleep(60)
                     else:
-                        if (self.minutes_passed(latest_round, 90)
+                        if (minutes_passed(latest_round, 90)
                                 and not noanswer_warning):
                             print("Not solved for 90 minutes. Warning.")
                             self.warn_noanswer(current_op)
                             noanswer_warning = True
-                        if (self.minutes_passed(latest_round, 120)
+                        if (minutes_passed(latest_round, 120)
                                 and noanswer_warning):
                             print("Not solved for 120 minutes. Setting"
                                   "UNSOLVED flair.")
@@ -461,12 +401,12 @@ class PictureGameBot:
                             and a new challenge will be created.
                             """))
                 elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
-                    if (self.minutes_passed(winner_comment, 60)
+                    if (minutes_passed(winner_comment, 60)
                             and not nopost_warning):
                         print("Not posted for 60 minutes. Warning.")
                         self.warn_nopost(current_op)
                         nopost_warning = True
-                    if (self.minutes_passed(winner_comment, 90)
+                    if (minutes_passed(winner_comment, 90)
                             and nopost_warning):
                         print("Not posted for 90 minutes. Taking over.")
                         self.create_challenge()
@@ -492,7 +432,3 @@ class PictureGameBot:
             except KeyboardInterrupt:
                 print("CURRENT PASSWORD: {:s}".format(self.player[1]))
                 sys.exit(0)
-
-if __name__ == "__main__":
-    Game = PictureGameBot(subreddit="PictureGame")
-    print(Game.create_leaderboard(Game.parse_leaderboard()))
