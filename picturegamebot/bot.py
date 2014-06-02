@@ -97,7 +97,7 @@ class PictureGameBot:
     """
     Main runner for the picturegamebot.
     """
-    version = "0.5"
+    version = "0.6"
     user_agent = "/r/PictureGame Bot"
 
     def __init__(self, gamebot=(None, None), player=(None, None),
