@@ -180,22 +180,24 @@ class PictureGameBot:
         if flair is not None:
             text = flair["flair_text"]
             if text == "" or text is None:
-                self.subreddit.set_flair(user, "Round {:d}".format(curround))
+                self.subreddit.set_flair(user, "Round {:d}".format(curround),
+                                         "winner")
             elif re.search(r"\d wins", text):
                 repl = re.sub(
                     r"(\d) wins",
                     lambda m: "{:d} wins".format(int(m.group(1)) + 1),
                     text)
-                self.subreddit.set_flair(user, repl)
+                self.subreddit.set_flair(user, repl, "winner")
             elif re.search(r"^Round", text):
                 rounds = len(re.findall(r"(\d)", text))
                 if rounds >= 7:
                     self.subreddit.set_flair(user,
-                                             "{:d} wins".format(rounds + 1))
+                                             "{:d} wins".format(rounds + 1),
+                                             "winner")
                 else:
                     self.subreddit.set_flair(
                         user,
-                        "{:s}, {:d}".format(text, curround))
+                        "{:s}, {:d}".format(text, curround), "winner")
 
     def winner_comment(self, post):
         """
@@ -316,7 +318,7 @@ class PictureGameBot:
                                  comment.submission.title.lower())
                        .group(1))
         self.increment_flair(comment.author, curround)
-        self.subreddit.set_flair(comment.submission, "ROUND OVER")
+        self.subreddit.set_flair(comment.submission, "ROUND OVER", "over")
         subject = "Congratulations, you can post the next round!"
         text = (
           "The password for /u/{:s} is `{:s}`. "
@@ -373,7 +375,8 @@ class PictureGameBot:
                             and message.author in self.subreddit.get_moderators()
                             and "+reset" in message.subject.lower()):
                         if link_flair is None or link_flair == "":
-                            self.subreddit.set_flair(latest_round, "DEAD ROUND")
+                            self.subreddit.set_flair(latest_round,
+                                                     "DEAD ROUND", "over")
                         else:
                             lines = message.body.splitlines()
                             self.player = (lines[0], lines[1])
@@ -400,7 +403,8 @@ class PictureGameBot:
                                 and noanswer_warning):
                             print("Not solved for 120 minutes. Setting"
                                   "UNSOLVED flair.")
-                            self.subreddit.set_flair(latest_round, "UNSOLVED")
+                            self.subreddit.set_flair(latest_round, "UNSOLVED",
+                                                     "over")
                             noanswer_warning = False
                             time.sleep(30)
                             latest_round.add_comment(
