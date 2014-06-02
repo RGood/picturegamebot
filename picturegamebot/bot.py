@@ -238,8 +238,8 @@ class PictureGameBot:
         """
         subject = "You haven't submitted a post!"
         text = (
-               "It seems that an hour has passed since you won the last"
-               "round. Please upload a post in the next 30 minutes, or"
+               "It seems that an hour has passed since you won the last "
+               "round. Please upload a post in the next 30 minutes, or "
                "else your account will be reset."
         )
         if op_:
@@ -257,9 +257,9 @@ class PictureGameBot:
         """
         subject = "You haven't gotten an answer!"
         text = (
-               "It seems that 90 minutes have passed since you submitted your"
-               "round. If no answer has been marked as correct in the next 30"
-               "minutes, the account will be reset. Try giving hints, or if"
+               "It seems that 90 minutes have passed since you submitted your "
+               "round. If no answer has been marked as correct in the next 30 "
+               "minutes, the account will be reset. Try giving hints, or if "
                "you already gave out a few hints, try and make them easier."
         )
         if op_:
@@ -307,8 +307,8 @@ class PictureGameBot:
         Regrets nothing.
         """
         comment.reply(
-            "Congratulations, that was the correct answer! Please continue the"
-            "game as soon as possible. You have been PM'd the instructions for"
+            "Congratulations, that was the correct answer! Please continue the "
+            "game as soon as possible. You have been PM'd the instructions for "
             "continuing the game."
         ).distinguish()
         self.reset_password()
@@ -319,13 +319,13 @@ class PictureGameBot:
         self.subreddit.set_flair(comment.submission, "ROUND OVER")
         subject = "Congratulations, you can post the next round!"
         text = (
-          "The password for /u/{:s} is `{:s}`."
-          "**DO NOT CHANGE THIS PASSWORD.**"
-          "It will be automatically changed once someone solves your"
-          "challenge. Post the next round and reply to the first correct"
-          "answer with \"+correct\". The post title should start with"
-          "\"[Round {:d}]\". Please put your post up as soon as possible."
-          "\n\nIf you need any help with hosting the round, do consult"
+          "The password for /u/{:s} is `{:s}`. "
+          "**DO NOT CHANGE THIS PASSWORD.** "
+          "It will be automatically changed once someone solves your "
+          "challenge. Post the next round and reply to the first correct "
+          "answer with \"+correct\". The post title should start with "
+          "\"[Round {:d}]\". Please put your post up as soon as possible. "
+          "\n\nIf you need any help with hosting the round, do consult "
           "[the wiki](http://reddit.com/r/picturegame/wiki/hosting)."
         ).format(self.player[0], self.player[1], curround + 1)
         self.r_gamebot.send_message(comment.author, subject, text)
@@ -404,8 +404,8 @@ class PictureGameBot:
                             noanswer_warning = False
                             time.sleep(30)
                             latest_round.add_comment(
-                              "This post has not been marked as solved for 2"
-                              "hours. The password of the account has been"
+                              "This post has not been marked as solved for 2 "
+                              "hours. The password of the account has been "
                               "reset and a new challenge will be created."
                             )
                 elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
