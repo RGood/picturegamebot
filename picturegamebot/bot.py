@@ -371,6 +371,19 @@ class PictureGameBot:
                 latest_round = self.latest_round()
                 winner_comment = self.winner_comment(latest_round)
                 link_flair = latest_round.link_flair_text
+                
+                for message in bot.reddit.get_inbox(limit=None):
+                    if (message.new
+                            and message.author in self.subreddit.get_moderators()
+                            and "+reset" in message.subject.lower()):
+                        if link_flair is None or link_flair == "":
+                            self.subreddit.set_flair(latest_round, "DEAD ROUND")
+                        else:
+                            lines = message.body.splitlines()
+                            self.player = (lines[0], lines[1])
+                            self.create_challenge()
+                            noanswer_warning = False
+                            current_op = None
 
                 if link_flair is None or link_flair == "":
                     nopost_warning = False
