@@ -306,7 +306,7 @@ class PictureGameBot:
         Regrets nothing.
         """
         comment.reply(
-            "Congratulations, that was the correct answer! Please continue the
+            "Congratulations, that was the correct answer! Please continue the"
             "game as soon as possible. You have been PM'd the instructions for"
             "continuing the game."
         ).distinguish()
