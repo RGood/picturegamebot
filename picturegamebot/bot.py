@@ -404,7 +404,7 @@ class PictureGameBot:
                             time.sleep(30)
                             latest_round.add_comment(
                               "This post has not been marked as solved for 2"
-                              "hours. The password of the account has been
+                              "hours. The password of the account has been"
                               "reset and a new challenge will be created."
                             )
                 elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
