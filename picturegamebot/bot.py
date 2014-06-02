@@ -27,7 +27,6 @@ import time
 import base64
 import pyimgur
 import requests
-from textwrap import dedent
 from random import choice as sample
 from urllib.request import urlretrieve
 
@@ -242,11 +241,11 @@ class PictureGameBot:
         Returns nothing.
         """
         subject = "You haven't submitted a post!"
-        text = dedent("""\
-               It seems that an hour has passed since you won the last
-               round. Please upload a post in the next 30 minutes, or
-               else your account will be reset.
-               """)
+        text = (
+               "It seems that an hour has passed since you won the last"
+               "round. Please upload a post in the next 30 minutes, or"
+               "else your account will be reset."
+        )
         if op_:
             self.r_gamebot.send_message(op_, subject, text)
         self.r_gamebot.send_message(self.r_player.user, subject, text)
@@ -261,12 +260,12 @@ class PictureGameBot:
         Returns nothing.
         """
         subject = "You haven't gotten an answer!"
-        text = dedent("""\
-               It seems that 90 minutes have passed since you submitted your
-               round. If no answer has been marked as correct in the next 30
-               minutes, the account will be reset. Try giving hints, or if
-               you already gave out a few hints, try and make them easier.
-               """)
+        text = (
+               "It seems that 90 minutes have passed since you submitted your"
+               "round. If no answer has been marked as correct in the next 30"
+               "minutes, the account will be reset. Try giving hints, or if"
+               "you already gave out a few hints, try and make them easier."
+        )
         if op_:
             self.r_gamebot.send_message(op_, subject, text)
         self.r_gamebot.send_message(self.r_player.user, subject, text)
@@ -311,11 +310,11 @@ class PictureGameBot:
 
         Regrets nothing.
         """
-        comment.reply(dedent("""\
-        Congratulations, that was the correct answer! Please continue the game
-        as soon as possible. You have been PM'd the instructions for continuing
-        the game.
-        """)).distinguish()
+        comment.reply(
+            "Congratulations, that was the correct answer! Please continue the
+            "game as soon as possible. You have been PM'd the instructions for"
+            "continuing the game."
+        ).distinguish()
         self.reset_password()
         curround = int(re.search(r"^\[round (\d+)",
                                  comment.submission.title.lower())
@@ -323,16 +322,16 @@ class PictureGameBot:
         self.increment_flair(comment.author, curround)
         self.subreddit.set_flair(comment.submission, "ROUND OVER")
         subject = "Congratulations, you can post the next round!"
-        text = dedent("""\
-               The password for /u/{:s} is `{:s}`.
-               **DO NOT CHANGE THIS PASSWORD.**
-               It will be automatically changed once someone solves your
-               challenge. Post the next round and reply to the first correct
-               answer with "+correct". The post title should start with
-               "[Round {:d}]". Please put your post up as soon as possible.
-               \n\nIf you need any help with hosting the round, do consult
-               [the wiki](http://reddit.com/r/picturegame/wiki/hosting).
-               """).format(self.player[0], self.player[1], curround + 1)
+        text = (
+          "The password for /u/{:s} is `{:s}`."
+          "**DO NOT CHANGE THIS PASSWORD.**"
+          "It will be automatically changed once someone solves your"
+          "challenge. Post the next round and reply to the first correct"
+          "answer with \"+correct\". The post title should start with"
+          "\"[Round {:d}]\". Please put your post up as soon as possible."
+          "\n\nIf you need any help with hosting the round, do consult"
+          "[the wiki](http://reddit.com/r/picturegame/wiki/hosting)."
+        ).format(self.player[0], self.player[1], curround + 1)
         self.r_gamebot.send_message(comment.author, subject, text)
         self.leaderboard.add(comment.author, curround, publish=True)
 
@@ -395,11 +394,11 @@ class PictureGameBot:
                             self.subreddit.set_flair(latest_round, "UNSOLVED")
                             noanswer_warning = False
                             time.sleep(30)
-                            latest_round.add_comment(dedent("""\
-                            This post has not been marked as solved for 2
-                            hours. The password of the account has been reset
-                            and a new challenge will be created.
-                            """))
+                            latest_round.add_comment(
+                              "This post has not been marked as solved for 2"
+                              "hours. The password of the account has been
+                              "reset and a new challenge will be created."
+                            )
                 elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
                     if (minutes_passed(winner_comment, 60)
                             and not nopost_warning):
