@@ -1,2 +1,2 @@
 from picturegamebot.bot import PictureGameBot
-PictureGameBot(subreddit="ModeratorApp").run()
+PictureGameBot(subreddit="PictureGame").run()
