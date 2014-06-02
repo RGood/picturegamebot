@@ -152,11 +152,6 @@ class PictureGameBot:
         """
         newpass = password or generate_password()
         print("NEW PASSWORD: {:s}".format(newpass))
-        self.r_gamebot.send_message(
-            self.subreddit,
-            "Password Change",
-            "Password of {:s} is now {:s}".format(self.player[0], newpass)
-        )
         url = "http://www.reddit.com/api/update_password"
         data = {"curpass": self.player[1], "newpass": newpass,
                 "verpass": newpass}
