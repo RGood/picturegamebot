@@ -62,7 +62,8 @@ def minutes_passed(thing, minutes):
  
     Returns a Boolean.
     """
-    return time.time() > (thing.created_utc + (minutes*60))
+    if thing:
+        return time.time() > (thing.created_utc + (minutes*60))
   
 def run_challenge(post, answer, hints):
     """
