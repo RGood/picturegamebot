@@ -367,7 +367,7 @@ class PictureGameBot:
                 winner_comment = self.winner_comment(latest_round)
                 link_flair = latest_round.link_flair_text
                 
-                for message in bot.reddit.get_inbox(limit=None):
+                for message in self.reddit.get_inbox(limit=None):
                     if (message.new
                             and message.author in self.subreddit.get_moderators()
                             and "+reset" in message.subject.lower()):
