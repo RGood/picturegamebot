@@ -240,9 +240,9 @@ class PictureGameBot:
         """
         subject = "You haven't submitted a post!"
         text = (
-               "It seems that an hour has passed since you won the last "
-               "round. Please upload a post in the next 30 minutes, or "
-               "else your account will be reset."
+            "It seems that 30 minutes have passed since you won the "
+            "last round. Please upload a post in the next 15 minutes, or "
+            "else your account will be reset."
         )
         if op_:
             self.r_gamebot.send_message(op_, subject, text)
@@ -259,10 +259,10 @@ class PictureGameBot:
         """
         subject = "You haven't gotten an answer!"
         text = (
-               "It seems that 90 minutes have passed since you submitted your "
-               "round. If no answer has been marked as correct in the next 30 "
-               "minutes, the account will be reset. Try giving hints, or if "
-               "you already gave out a few hints, try and make them easier."
+            "It seems that 90 minutes have passed since you submitted your "
+            "round. If no answer has been marked as correct in the next 30 "
+            "minutes, the account will be reset. Try giving hints, or if "
+            "you already gave out a few hints, try and make them easier."
         )
         if op_:
             self.r_gamebot.send_message(op_, subject, text)
@@ -351,9 +351,9 @@ class PictureGameBot:
                 (the bot will upload a new post next loop)
 
           or else if LATEST POST HAS BEEN SOLVED:
-            if 60 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
-              pm OP that he needs to put a new post up before 30 minutes
-            if 90 MINUTES HAVE PASSED AND I WARNED YA:
+            if 30 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
+              pm OP that he needs to put a new post up before 15 minutes
+            if 45 MINUTES HAVE PASSED AND I WARNED YA:
               the bot will upload a new post
 
           or else if LATEST POST HAS BEEN KILLED (DEAD ROUND/UNSOLVED):
@@ -411,14 +411,14 @@ class PictureGameBot:
                               "reset and a new challenge will be created."
                             )
                 elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
-                    if (minutes_passed(winner_comment, 60)
+                    if (minutes_passed(winner_comment, 30)
                             and not nopost_warning):
-                        print("Not posted for 60 minutes. Warning.")
+                        print("Not posted for 30 minutes. Warning.")
                         self.warn_nopost(current_op)
                         nopost_warning = True
-                    if (minutes_passed(winner_comment, 90)
+                    if (minutes_passed(winner_comment, 45)
                             and nopost_warning):
-                        print("Not posted for 90 minutes. Taking over.")
+                        print("Not posted for 45 minutes. Taking over.")
                         self.create_challenge()
                         nopost_warning = False
                         current_op = None
