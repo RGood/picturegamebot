@@ -64,34 +64,6 @@ def minutes_passed(thing, minutes):
     """
     if thing:
         return time.time() > (thing.created_utc + (minutes*60))
-  
-def run_challenge(post, answer, hints):
-    """
-    Internal: Runs the challenge given on the Submission object. When the
-      answer was found somewhere in the comments, the bot replies with
-      "+correct" and ends itself.
-
-    post   - A praw.objects.Submission object to run on.
-    answer - A string to look for in the comments.
-
-    Returns nothing.
-    """
-    firsthint = secondhint = giveaway = None
-    while True:
-        post.refresh()
-        comments = praw.helpers.flatten_tree(post.comments)
-        for comment in comments:
-            if answer.lower() in comment.body.lower():
-                print("CORRECT ANSWER - {:s}".format(answer))
-                comment.reply("+correct")
-                return
-        if minutes_passed(post, 30) and not firsthint:
-            firsthint = post.add_comment(hints[0])
-        if minutes_passed(post, 60) and not secondhint:
-            secondhint = post.add_comment(hints[1])
-        if minutes_passed(post, 90) and not giveaway:
-            giveaway = post.add_comment(hints[2])
-        time.sleep(15)
 
 
 class PictureGameBot:
@@ -298,6 +270,35 @@ class PictureGameBot:
         else:
             return (post, answer, hints)
 
+    def run_challenge(self, post, answer, hints):
+        """
+        Internal: Runs the challenge given on the Submission object. When the
+          answer was found somewhere in the comments, the bot replies with
+          "+correct" and ends itself.
+
+        post   - A praw.objects.Submission object to run on.
+        answer - A string to look for in the comments.
+
+        Returns nothing.
+        """
+        firsthint = secondhint = giveaway = None
+        while True:
+            post.refresh()
+            comments = praw.helpers.flatten_tree(post.comments)
+            for comment in comments:
+                if (answer.lower() in comment.body.lower()
+                        and comment.author != self.r_player.user):
+                    print("CORRECT ANSWER - {:s}".format(answer))
+                    comment.reply("+correct")
+                    return
+            if minutes_passed(post, 30) and not firsthint:
+                firsthint = post.add_comment(hints[0])
+            if minutes_passed(post, 60) and not secondhint:
+                secondhint = post.add_comment(hints[1])
+            if minutes_passed(post, 90) and not giveaway:
+                giveaway = post.add_comment(hints[2])
+            time.sleep(15)
+
     def win(self, comment):
         """
         Internal: So somebody got the right answer. First, add a win to his
@@ -402,14 +403,14 @@ class PictureGameBot:
                                 and noanswer_warning):
                             print("Not solved for 120 minutes. Setting"
                                   "UNSOLVED flair.")
-                            latest_round.set_flair("UNSOLVED", "over")
+                            latest_round.set_flair("UNSOLVED", "unsolved")
                             noanswer_warning = False
                             time.sleep(30)
                             latest_round.add_comment(
                               "This post has not been marked as solved for 2 "
                               "hours. The password of the account has been "
                               "reset and a new challenge will be created."
-                            )
+                            ).distinguish()
                 elif re.search(link_flair, "ROUND OVER", re.IGNORECASE):
                     if (minutes_passed(winner_comment, 30)
                             and not nopost_warning):
@@ -428,6 +429,8 @@ class PictureGameBot:
                     self.create_challenge()
                     noanswer_warning = False
                     current_op = None
+
+                time.sleep(30)
 
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code in [429, 500, 502, 503, 504]:
