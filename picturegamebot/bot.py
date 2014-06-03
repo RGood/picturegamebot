@@ -383,7 +383,10 @@ class PictureGameBot:
                             noanswer_warning = False
                             current_op = None
 
-                if link_flair is None or link_flair == "":
+                if (link_flair is None
+                            or link_flair == ""
+                            or re.search(link_flair, "UNSOLVED",
+                                         re.IGNORECASE)):
                     nopost_warning = False
                     if (winner_comment
                             and not self.already_replied(winner_comment)):
