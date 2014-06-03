@@ -266,7 +266,7 @@ class PictureGameBot:
              " Street-View image taken?").format(newround),
             url=url)
         if run:
-            run_challenge(post, answer, hints)
+            self.run_challenge(post, answer, hints)
         else:
             return (post, answer, hints)
 
@@ -346,7 +346,7 @@ class PictureGameBot:
               if 150 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
                 pm OP that he needs to provide hints before 30 minutes
               if 180 MINUTES HAVE PASSED AND I WARNED YA:
-                set the flair to UNSOLVED
+                set the flair to ABANDONED
                 chill for a bit
                 (the bot will upload a new post next loop)
 
@@ -356,7 +356,7 @@ class PictureGameBot:
             if 45 MINUTES HAVE PASSED AND I WARNED YA:
               the bot will upload a new post
 
-          or else if LATEST POST HAS BEEN KILLED (DEAD ROUND/UNSOLVED):
+          or else if LATEST POST HAS BEEN KILLED (DEAD ROUND/ABANDONED):
             the bot will upload a new post
 
         Returns nothing, it's a looping function.
@@ -366,7 +366,9 @@ class PictureGameBot:
         current_op = None         # The person who owns the account. (optional)
         while True:
             try:
-                latest_round = self.latest_round()
+                latest_found = self.latest_round()
+                if latest_round and latest_found.utc > latest_round.utc:
+                    latest_round = latest_found
                 winner_comment = self.winner_comment(latest_round)
                 link_flair = latest_round.link_flair_text
                 
@@ -401,8 +403,8 @@ class PictureGameBot:
                         if (minutes_passed(latest_round, 180)
                                 and noanswer_warning):
                             print("Not solved for 180 minutes. Setting"
-                                  "UNSOLVED flair.")
-                            latest_round.set_flair("UNSOLVED", "unsolved")
+                                  "ABANDONED flair.")
+                            latest_round.set_flair("ABANDONED", "abandoned")
                             noanswer_warning = False
                             time.sleep(30)
                             latest_round.add_comment(
@@ -422,9 +424,9 @@ class PictureGameBot:
                         self.create_challenge()
                         nopost_warning = False
                         current_op = None
-                elif re.search(link_flair, "DEAD ROUND|UNSOLVED",
+                elif re.search(link_flair, "DEAD ROUND|ABANDONED",
                                re.IGNORECASE):
-                    print("DEAD ROUND/UNSOLVED flair detected. Taking over.")
+                    print("DEAD ROUND/ABANDONED flair detected. Taking over.")
                     self.create_challenge()
                     noanswer_warning = False
                     current_op = None
