@@ -231,7 +231,7 @@ class PictureGameBot:
         """
         subject = "You haven't gotten an answer!"
         text = (
-            "It seems that 90 minutes have passed since you submitted your "
+            "It seems that 2.5 hours have passed since you submitted your "
             "round. If no answer has been marked as correct in the next 30 "
             "minutes, the account will be reset. Try giving hints, or if "
             "you already gave out a few hints, try and make them easier."
@@ -344,9 +344,9 @@ class PictureGameBot:
               send password to winner
               chill for a bit
             or else:
-              if 90 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
+              if 150 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
                 pm OP that he needs to provide hints before 30 minutes
-              if 120 MINUTES HAVE PASSED AND I WARNED YA:
+              if 180 MINUTES HAVE PASSED AND I WARNED YA:
                 set the flair to UNSOLVED
                 chill for a bit
                 (the bot will upload a new post next loop)
@@ -394,14 +394,14 @@ class PictureGameBot:
                         noanswer_warning = False
                         time.sleep(60)
                     else:
-                        if (minutes_passed(latest_round, 90)
+                        if (minutes_passed(latest_round, 150)
                                 and not noanswer_warning):
-                            print("Not solved for 90 minutes. Warning.")
+                            print("Not solved for 150 minutes. Warning.")
                             self.warn_noanswer(current_op)
                             noanswer_warning = True
-                        if (minutes_passed(latest_round, 120)
+                        if (minutes_passed(latest_round, 180)
                                 and noanswer_warning):
-                            print("Not solved for 120 minutes. Setting"
+                            print("Not solved for 180 minutes. Setting"
                                   "UNSOLVED flair.")
                             latest_round.set_flair("UNSOLVED", "unsolved")
                             noanswer_warning = False
