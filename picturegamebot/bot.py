@@ -338,7 +338,7 @@ class PictureGameBot:
         Public: Starts listening in the subreddit and does its thing.
           My complicated logic in plain English:
 
-          if POST IS UNSOLVED:
+          if LATEST POST IS UNSOLVED:
             if POST HAS ANSWER:
               send password to winner
               chill for a bit
@@ -350,13 +350,13 @@ class PictureGameBot:
                 chill for a bit
                 (the bot will upload a new post next loop)
 
-          or else if POST HAS BEEN SOLVED:
+          or else if LATEST POST HAS BEEN SOLVED:
             if 60 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
               pm OP that he needs to put a new post up before 30 minutes
             if 90 MINUTES HAVE PASSED AND I WARNED YA:
               the bot will upload a new post
 
-          or else if POST HAS BEEN KILLED (DEAD ROUND/UNSOLVED):
+          or else if LATEST POST HAS BEEN KILLED (DEAD ROUND/UNSOLVED):
             the bot will upload a new post
 
         Returns nothing, it's a looping function.
