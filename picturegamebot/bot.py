@@ -322,15 +322,14 @@ class PictureGameBot:
         comment.submission.set_flair("ROUND OVER", "over")
         subject = "Congratulations, you can post the next round!"
         text = (
-          "The password for /u/{:s} is `{:s}`. "
-          "**DO NOT CHANGE THIS PASSWORD.** "
-          "It will be automatically changed once someone solves your "
-          "challenge. Post the next round and reply to the first correct "
-          "answer with \"+correct\". The post title should start with "
-          "\"[Round {:d}]\". Please put your post up as soon as possible. "
-          "\n\nIf you need any help with hosting the round, do consult "
-          "[the wiki](http://reddit.com/r/picturegame/wiki/hosting)."
-        ).format(self.player[0], self.player[1], curround + 1)
+            "Congratulations on winning the last round! "
+            "Please login to the account using the details below"
+            "and submit a new round."
+            "Please remember that your title must start with \"[Round {:d}]\"."
+            "\n\nFirst time winning? See the "
+            "[hosting guide](/r/picturegame/wiki/hosting)."
+            "\n\n---\nUsername: `{:s}`\n\nPassword: `{:s}`"
+        ).format(curround + 1, self.player[0], self.player[1])
         self.r_gamebot.send_message(comment.author, subject, text)
         self.leaderboard.add(comment.author, curround, publish=True)
 
