@@ -318,7 +318,7 @@ class PictureGameBot:
                                  comment.submission.title.lower())
                        .group(1))
         self.increment_flair(comment.author, curround)
-        self.subreddit.set_flair(comment.submission, "ROUND OVER", "over")
+        comment.submission.set_flair("ROUND OVER", "over")
         subject = "Congratulations, you can post the next round!"
         text = (
           "The password for /u/{:s} is `{:s}`. "
@@ -375,8 +375,7 @@ class PictureGameBot:
                             and message.author in self.subreddit.get_moderators()
                             and "+reset" in message.subject.lower()):
                         if link_flair is None or link_flair == "":
-                            self.subreddit.set_flair(latest_round,
-                                                     "DEAD ROUND", "over")
+                            latest_round.set_flair("DEAD ROUND", "over")
                         else:
                             lines = message.body.splitlines()
                             self.player = (lines[0], lines[1])
@@ -403,8 +402,7 @@ class PictureGameBot:
                                 and noanswer_warning):
                             print("Not solved for 120 minutes. Setting"
                                   "UNSOLVED flair.")
-                            self.subreddit.set_flair(latest_round, "UNSOLVED",
-                                                     "over")
+                            latest_round.set_flair("UNSOLVED", "over")
                             noanswer_warning = False
                             time.sleep(30)
                             latest_round.add_comment(
