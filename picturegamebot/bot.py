@@ -366,9 +366,7 @@ class PictureGameBot:
         current_op = None         # The person who owns the account. (optional)
         while True:
             try:
-                latest_found = self.latest_round()
-                if latest_round and latest_found.utc > latest_round.utc:
-                    latest_round = latest_found
+                latest_round = self.latest_round()
                 winner_comment = self.winner_comment(latest_round)
                 link_flair = latest_round.link_flair_text
                 
