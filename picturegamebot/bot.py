@@ -154,14 +154,14 @@ class PictureGameBot:
             if text == "" or text is None:
                 self.subreddit.set_flair(user, "Round {:d}".format(curround),
                                          "winner")
-            elif re.search(r"\d wins", text):
+            elif re.search(r"\d+ wins", text):
                 repl = re.sub(
-                    r"(\d) wins",
+                    r"(\d+) wins",
                     lambda m: "{:d} wins".format(int(m.group(1)) + 1),
                     text)
                 self.subreddit.set_flair(user, repl, "winner")
             elif re.search(r"^Round", text):
-                rounds = len(re.findall(r"(\d)", text))
+                rounds = len(re.findall(r"(\d+)", text))
                 if rounds >= 7:
                     self.subreddit.set_flair(user,
                                              "{:d} wins".format(rounds + 1),
