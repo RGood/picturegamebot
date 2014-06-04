@@ -335,7 +335,7 @@ class PictureGameBot:
             "[hosting guide](/r/picturegame/wiki/hosting)."
             "\n\n---\nUsername: `{username}`\n\nPassword: `{password}`"
             "\n\n[Submit a new Round]"
-            "(http://www.reddit.com/r/PictureGame/submit?title=[Round%20{roundno!s}])"
+            "\> (http://www.reddit.com/r/PictureGame/submit?title=[Round%20{roundno!s}])"
         ).format(roundno=curround + 1,
                  username=self.player[0],
                  password=self.player[1])
