@@ -180,12 +180,17 @@ class PictureGameBot:
 
         Returns a praw.objects.Comment.
         """
+        post.replace_more_comments(limit=None)
         comments = praw.helpers.flatten_tree(post.comments)
         for comment in comments:
-            if (comment.author == self.r_player.user
+            if (isinstance(comment, praw.objects.Comment)
+                    and comment.author == self.r_player.user
                     and "+correct" in comment.body
                     and not comment.is_root):
-                return self.r_gamebot.get_info(thing_id=comment.parent_id)
+                parent = self.r_gamebot.get_info(thing_id=comment.parent_id)
+                # Checking if the comment had been [deleted]
+                if parent.author is not None:
+                    return parent
 
     def already_replied(self, comment):
         """
