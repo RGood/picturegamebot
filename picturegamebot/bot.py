@@ -330,11 +330,15 @@ class PictureGameBot:
             "Congratulations on winning the last round! "
             "Please login to the account using the details below"
             "and submit a new round."
-            "Please remember that your title must start with \"[Round {:d}]\"."
+            "Please remember that your title must start with \"[Round {roundno!s}]\"."
             "\n\nFirst time winning? See the "
             "[hosting guide](/r/picturegame/wiki/hosting)."
-            "\n\n---\nUsername: `{:s}`\n\nPassword: `{:s}`"
-        ).format(curround + 1, self.player[0], self.player[1])
+            "\n\n---\nUsername: `{username}`\n\nPassword: `{password}`"
+            "\n\n[Submit a new Round]"
+            "(http://www.reddit.com/r/PictureGame/submit?title=[Round%20{roundno!s}])"
+        ).format(roundno=curround + 1,
+                 username=self.player[0],
+                 password=self.player[1])
         self.r_gamebot.send_message(comment.author, subject, text)
         self.leaderboard.add(comment.author, curround, publish=True)
 
