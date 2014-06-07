@@ -101,7 +101,7 @@ class PictureGameBot:
         page - The wiki page to search in.
         """
         content = self.subreddit.get_wiki_page(page).content_md
-        match = re.search("#bot>(?P<username>\w*):(?P<password>.*)", content)
+        match = re.search("#bot&gt;(?P<username>\w*):(?P<password>\S*)", content)
         return match.groups()
 
     def latest_round(self):
