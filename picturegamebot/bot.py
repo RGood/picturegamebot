@@ -104,7 +104,7 @@ class PictureGameBot:
         match = re.search("#bot&gt;(?P<username>\w*):(?P<password>\S*)", content)
         return match.groups()
 
-    def set_player_credentials(self, password, username=self.r_player.user.name,
+    def set_player_credentials(self, password, username=r_player.user.name,
                                page="accounts"):
         """
         Public: Save the player username and password to the wiki page.
