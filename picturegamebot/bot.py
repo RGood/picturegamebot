@@ -328,14 +328,14 @@ class PictureGameBot:
         subject = "Congratulations, you can post the next round!"
         text = (
             "Congratulations on winning the last round! "
-            "Please login to the account using the details below"
-            "and submit a new round."
+            "Please login to the account using the details below "
+            "and submit a new round. "
             "Please remember that your title must start with \"[Round {roundno!s}]\"."
             "\n\nFirst time winning? See the "
             "[hosting guide](/r/picturegame/wiki/hosting)."
             "\n\n---\nUsername: `{username}`\n\nPassword: `{password}`"
-            "\n\n[Submit a new Round]"
-            "\> (http://www.reddit.com/r/PictureGame/submit?title=[Round%20{roundno!s}])"
+            "\n\n\> [Submit a new Round]"
+            "(http://www.reddit.com/r/PictureGame/submit?title=[Round%20{roundno!s}])"
         ).format(roundno=curround + 1,
                  username=self.player[0],
                  password=self.player[1])
