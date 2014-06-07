@@ -122,7 +122,7 @@ class PictureGameBot:
             content)
         self.subreddit.edit_wiki_page(
             page, new_content, 
-            reason="Password Update - {:s}".format(password))
+            reason="Password Update")
 
     def latest_round(self):
         """
