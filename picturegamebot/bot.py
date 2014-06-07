@@ -118,7 +118,7 @@ class PictureGameBot:
         content = self.subreddit.get_wiki_page(page).content_md
         new_content = re.sub(
             "#bot&gt;\w*:\S*",
-            "#bot&gt;{:s}:{:s}".format(self.r_player.user.name, password),
+            "#bot>{:s}:{:s}".format(self.r_player.user.name, password),
             content)
         self.subreddit.edit_wiki_page(
             page, new_content, 
