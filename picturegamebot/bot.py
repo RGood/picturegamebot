@@ -83,11 +83,12 @@ class PictureGameBot:
                                                           self.version))
         self.r_gamebot.login(self.gamebot[0], self.gamebot[1])
 
+        self.subreddit = self.r_gamebot.get_subreddit(subreddit)
+
         self.player = self.get_player_credentials()
         self.r_player = praw.Reddit("/r/PictureGame Account")
         self.r_player.login(self.player[0], self.player[1])
 
-        self.subreddit = self.r_gamebot.get_subreddit(subreddit)
         self.imgur = pyimgur.Imgur(os.environ.get("IMGUR_ID", imgurid))
 
         self.leaderboard = Leaderboard(self.subreddit)
