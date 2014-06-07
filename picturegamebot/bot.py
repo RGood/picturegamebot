@@ -8,15 +8,7 @@ Requirements:
 - A subreddit where only the player account can post.
 - A bot account that moderates posts (must be a moderator)
 - A player account that is passed from person to person.
-
-Assumptions:
-- The subreddit is quite active, because the player account is expected to be
-  transferred quite quickly.
-- The bot is run constantly, without too many unexpected halts (there are
-  some failsafes, but they are not meant to be used frequently).
-- All players post in the format "[Round XXXX] Lorem Ipsum Dolor...". If the
-  post deviates from the format even a little, the post wouldn't be counted
-  as a round. There is no enforcing of format yet.
+- A wiki with the pages "leaderboard" and "accounts" with prepopulated content.
 """
 
 import os
@@ -70,18 +62,16 @@ class PictureGameBot:
     """
     Main runner for the picturegamebot.
     """
-    version = "0.6"
+    version = "1.0"
     user_agent = "/r/PictureGame Bot"
 
-    def __init__(self, gamebot=(None, None), player=(None, None),
-                 imgurid=None, subreddit="PictureGame"):
+    def __init__(self, gamebot=(None, None), imgurid=None,
+                 subreddit="PictureGame"):
         """
         Public: Logs into the bot and the player account. Sets up imgur
           access.
 
         gamebot   - A tuple of username and password for the bot account.
-        player    - A tuple of username and password for the picturegame
-                    account. This is the one that gets reset.
         imgurid   - The Client ID used to log into Imgur.
         subreddit - The subreddit to listen on.
 
@@ -93,8 +83,7 @@ class PictureGameBot:
                                                           self.version))
         self.r_gamebot.login(self.gamebot[0], self.gamebot[1])
 
-        self.player = (os.environ.get("PLAYER_USERNAME", player[0]),
-                       os.environ.get("PLAYER_PASSWORD", player[1]))
+        self.player = self.get_player_credentials()
         self.r_player = praw.Reddit("/r/PictureGame Account")
         self.r_player.login(self.player[0], self.player[1])
 
@@ -102,6 +91,17 @@ class PictureGameBot:
         self.imgur = pyimgur.Imgur(os.environ.get("IMGUR_ID", imgurid))
 
         self.leaderboard = Leaderboard(self.subreddit)
+
+    def get_player_credentials(self, page="accounts"):
+        """
+        Public: Get the player username and password from the wiki page.
+          The credentials are in the form `#bot>USERNAME:PASSWORD`
+
+        page - The wiki page to search in.
+        """
+        content = self.subreddit.get_wiki_page(page).content_md
+        match = re.search("#bot>(?P<username>\w*):(?P<password>.*)", content)
+        return match.groups()
 
     def latest_round(self):
         """
@@ -378,19 +378,6 @@ class PictureGameBot:
                 latest_round = self.latest_round()
                 winner_comment = self.winner_comment(latest_round)
                 link_flair = latest_round.link_flair_text
-                
-                for message in self.r_gamebot.get_inbox(limit=None):
-                    if (message.new
-                            and message.author in self.subreddit.get_moderators()
-                            and "+reset" in message.subject.lower()):
-                        if link_flair is None or link_flair == "":
-                            latest_round.set_flair("DEAD ROUND", "over")
-                        else:
-                            lines = message.body.splitlines()
-                            self.player = (lines[0], lines[1])
-                            self.create_challenge()
-                            noanswer_warning = False
-                            current_op = None
 
                 if (link_flair is None
                             or link_flair == ""
@@ -443,6 +430,10 @@ class PictureGameBot:
 
                 time.sleep(30)
 
+            except praw.errors.InvalidUserPass:
+                self.player = self.get_player_credentials()
+                self.r_player.login(self.player[0], self.player[1])
+                sleep(10)
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code in [429, 500, 502, 503, 504]:
                     print(("Reddit is down (error {:d}), sleeping for 5 "
