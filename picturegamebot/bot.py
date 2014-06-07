@@ -99,22 +99,26 @@ class PictureGameBot:
           The credentials are in the form `#bot>USERNAME:PASSWORD`
 
         page - The wiki page to search in.
+        
+        Returns a tuple of username/password.
         """
         content = self.subreddit.get_wiki_page(page).content_md
         match = re.search("#bot&gt;(?P<username>\w*):(?P<password>\S*)", content)
         return match.groups()
 
-    def set_player_credentials(self, password, username=r_player.user.name,
-                               page="accounts"):
+    def set_player_credentials(self, password, page="accounts"):
         """
         Public: Save the player username and password to the wiki page.
-
-        page - The wiki page to edit.
+        
+        password - The new password
+        page     - The wiki page to edit.
+        
+        Returns nothing.
         """
         content = self.subreddit.get_wiki_page(page).content_md
         new_content = re.sub(
             "#bot&gt;\w*:\S*",
-            "#bot&gt;{:s}:{:s}".format(username, password),
+            "#bot&gt;{:s}:{:s}".format(self.r_player.user.name, password),
             content)
         self.subreddit.edit_wiki_page(
             page, new_content, 
