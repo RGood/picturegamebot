@@ -104,6 +104,22 @@ class PictureGameBot:
         match = re.search("#bot&gt;(?P<username>\w*):(?P<password>\S*)", content)
         return match.groups()
 
+    def set_player_credentials(self, password, username=self.r_player.user.name,
+                               page="accounts"):
+        """
+        Public: Save the player username and password to the wiki page.
+
+        page - The wiki page to edit.
+        """
+        content = self.subreddit.get_wiki_page(page).content_md
+        new_content = re.sub(
+            "#bot&gt;\w*:\S*",
+            "#bot&gt;{:s}:{:s}".format(username, password),
+            content)
+        self.subreddit.edit_wiki_page(
+            page, new_content, 
+            reason="Password Update - {:s}".format(password))
+
     def latest_round(self):
         """
         Internal: Gets the top post in a subreddit that starts with "[Round".
@@ -132,6 +148,7 @@ class PictureGameBot:
         self.r_player.request_json(url, data=data)
         self.player = (self.player[0], newpass)
         self.r_player.login(self.player[0], self.player[1])
+        return newpass
 
     def increment_flair(self, user, curround):
         """
@@ -320,7 +337,8 @@ class PictureGameBot:
             "game as soon as possible. You have been PM'd the instructions for "
             "continuing the game."
         ).distinguish()
-        self.reset_password()
+        newpass = self.reset_password()
+        self.set_player_credentials(newpass)
         curround = int(re.search(r"^\[round (\d+)",
                                  comment.submission.title.lower())
                        .group(1))
