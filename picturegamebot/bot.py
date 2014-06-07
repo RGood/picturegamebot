@@ -188,8 +188,8 @@ class PictureGameBot:
                     and "+correct" in comment.body
                     and not comment.is_root):
                 parent = self.r_gamebot.get_info(thing_id=comment.parent_id)
-                # Checking if the comment had been [deleted]
-                if parent.author is not None:
+                if (parent.author is not None
+                        and parent.author != self.r_player.user):
                     return parent
 
     def already_replied(self, comment):
