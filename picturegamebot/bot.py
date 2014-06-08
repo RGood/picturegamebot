@@ -453,10 +453,11 @@ class PictureGameBot:
 
                 time.sleep(30)
 
-            except praw.errors.InvalidUserPass:
+            except (praw.errors.InvalidUserPass, praw.errors.NotLoggedIn):
+                # Wait a minute for mods to solve the issue
+                sleep(60)
                 self.player = self.get_player_credentials()
                 self.r_player.login(self.player[0], self.player[1])
-                sleep(10)
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code in [429, 500, 502, 503, 504]:
                     print(("Reddit is down (error {:d}), sleeping for 5 "
