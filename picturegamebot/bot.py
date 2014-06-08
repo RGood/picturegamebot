@@ -353,6 +353,7 @@ class PictureGameBot:
             "Congratulations on winning the last round! "
             "Please login to the account using the details below "
             "and submit a new round. "
+            "There is no need to change your password. "
             "Please remember that your title must start with \"[Round {roundno!s}]\"."
             "\n\nFirst time winning? See the "
             "[hosting guide](/r/picturegame/wiki/hosting)."
