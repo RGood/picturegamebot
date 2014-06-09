@@ -1,9 +1,4 @@
 Times Square|Times%20Square,%20Manhattan|It is one of the most visited places in the US.|It is also known as "The Crossroads of the World".|This is the Times Square.
-Taj Mahal|Taj%20Mahal,%20India&fov=120&heading=190|This monument is located in India.|It was built by an emperor in memory of his third wife.|This is the Taj Mahal.
-Eiffel Tower|Eiffel%20Tower,%20Paris&fov=80|This is from the top of a monument in Europe.|The river Seine can be seen from this monument.|It is the Eiffel Tower.
 Trafalgar Square|Trafalgar%20Square,%20London|A tourist attraction in central London.|It is named after the Battle of Trafalgar.|This is the Trafalgar Square.
-Atomium|Avenue%20de%20l%27Atomium,%20Brussels&heading=270|This attraction is located in Brussels.|CNN named it Europe's most bizarre building.|It is the Atomium.
-Palace of Versailles|Palace%20of%20Versailles,%20Versailles|This building is a symbol of the system of absolute monarchy in a country.|This building is named after the city it is located in.|We are in the Palace of Versailles.
 Hotel Danbury|333%20E%20Wonderview%20Ave%20Estes%20Park,%20CO&heading=-50|This place appears in a comedy film.|This place seem familiar? https://i.imgur.com/ER0T6.gif|It's Hotel Danbury from Dumb and Dumber.
 White House|The%20White%20House%20Washington,%20DC&heading=20|This building gets destroyed in Independence Day.|Behind me is a workplace named after a certain ellipse.|It's the White House.
-Fuji|Mount%20Fuji,%20Japan&heading=180|Complete this: Tate, Haku, ????|It's the tallest mountain in Japan.|Somebody say "Mount Fuji" quick!
