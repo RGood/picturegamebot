@@ -103,7 +103,7 @@ class PictureGameBot:
         Returns a tuple of username/password.
         """
         content = self.subreddit.get_wiki_page(page).content_md
-        match = re.search("#bot&gt;(?P<username>\w*):(?P<password>\S*)", content)
+        match = re.search(r"#bot&gt;(?P<username>\w*):(?P<password>\S*)", content)
         return match.groups()
 
     def set_player_credentials(self, password, page="accounts"):
@@ -117,7 +117,7 @@ class PictureGameBot:
         """
         content = self.subreddit.get_wiki_page(page).content_md
         new_content = re.sub(
-            "#bot&gt;\w*:\S*",
+            r"#bot&gt;\w*:\S*",
             "#bot>{:s}:{:s}".format(self.r_player.user.name, password),
             content)
         self.subreddit.edit_wiki_page(
@@ -455,6 +455,9 @@ class PictureGameBot:
                 time.sleep(30)
 
             except (praw.errors.InvalidUserPass, praw.errors.NotLoggedIn):
+                self.r_gamebot.send_message(self.subreddit, "Password Issue!",
+                               "There has been an issue with the password. "
+                               "Please reset the password in /wiki/accounts.")
                 # Wait a minute for mods to solve the issue
                 time.sleep(60)
                 self.player = self.get_player_credentials()
