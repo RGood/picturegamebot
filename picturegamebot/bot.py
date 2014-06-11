@@ -456,7 +456,7 @@ class PictureGameBot:
 
             except (praw.errors.InvalidUserPass, praw.errors.NotLoggedIn):
                 # Wait a minute for mods to solve the issue
-                sleep(60)
+                time.sleep(60)
                 self.player = self.get_player_credentials()
                 self.r_player.login(self.player[0], self.player[1])
             except requests.exceptions.HTTPError as error:
