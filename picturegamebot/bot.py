@@ -464,11 +464,7 @@ class PictureGameBot:
                 self.r_player.login(self.player[0], self.player[1])
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code in [429, 500, 502, 503, 504]:
-                    print(("Reddit is down (error {:d}), sleeping for 5 "
-                           "minutes").format(error.response.status_code))
-                    time.sleep(300)
-                else:
-                    raise
+                    pass
             except praw.errors.RateLimitExceeded as error:
                 print("Ratelimit: {:d} seconds".format(error.sleep_time))
                 time.sleep(error.sleep_time)
