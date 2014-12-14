@@ -341,8 +341,6 @@ class PictureGameBot:
             "game as soon as possible. You have been PM'd the instructions for "
             "continuing the game."
         ).distinguish()
-        newpass = self.reset_password()
-        self.set_player_credentials(newpass)
         curround = int(re.search(r"^\[round (\d+)",
                                  comment.submission.title.lower())
                        .group(1))
@@ -364,6 +362,7 @@ class PictureGameBot:
                  username=self.player[0],
                  password=self.player[1])
         self.r_gamebot.send_message(comment.author, subject, text)
+		self.subreddit.add_contributor(comment.author)
         self.leaderboard.add(comment.author, curround, publish=True)
 
     def run(self):
@@ -373,7 +372,8 @@ class PictureGameBot:
 
           if LATEST POST IS UNSOLVED:
             if POST HAS ANSWER:
-              send password to winner
+              send instructions to winner and approve them to the sub
+			  remove the old OP
               chill for a bit
             or else:
               if 150 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
@@ -412,6 +412,7 @@ class PictureGameBot:
                             and not self.already_replied(winner_comment)):
                         print("New winner! PMing new password.")
                         self.win(winner_comment)
+						self.subreddit.remove_contributor(current_op)
                         current_op = winner_comment.author
                         noanswer_warning = False
                         time.sleep(60)
