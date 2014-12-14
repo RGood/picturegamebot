@@ -27,6 +27,23 @@ warnings.filterwarnings("ignore", category=ResourceWarning)
 
 from picturegamebot.leaderboard import Leaderboard
 
+
+def generate_password():
+    """
+    Internal: Generates a random password using the wordlist.txt file in
+      the same directory. If the file was not found, use a random string
+      instead.
+
+    Returns a random string of passwords.
+    """
+    try:
+        words = open("wordlist.txt").read().splitlines()
+        return "{:s}-{:s}-{:s}".format(sample(words),
+                                       sample(words),
+                                       sample(words))
+    except IOError:
+        return base64.urlsafe_b64encode(os.urandom(30))
+
 def minutes_passed(thing, minutes):
     """
     Internal: Returns True if said minutes have passed since the creation
@@ -76,6 +93,37 @@ class PictureGameBot:
 
         self.leaderboard = Leaderboard(self.subreddit)
 
+    def get_player_credentials(self, page="accounts"):
+        """
+        Public: Get the player username and password from the wiki page.
+          The credentials are in the form `#bot>USERNAME:PASSWORD`
+
+        page - The wiki page to search in.
+        
+        Returns a tuple of username/password.
+        """
+        content = self.subreddit.get_wiki_page(page).content_md
+        match = re.search(r"#bot&gt;(?P<username>\w*):(?P<password>\S*)", content)
+        return match.groups()
+
+    def set_player_credentials(self, password, page="accounts"):
+        """
+        Public: Save the player username and password to the wiki page.
+        
+        password - The new password
+        page     - The wiki page to edit.
+        
+        Returns nothing.
+        """
+        content = self.subreddit.get_wiki_page(page).content_md
+        new_content = re.sub(
+            r"#bot&gt;\w*:\S*",
+            "#bot>{:s}:{:s}".format(self.r_player.user.name, password),
+            content)
+        self.subreddit.edit_wiki_page(
+            page, new_content, 
+            reason="Password Update")
+
     def latest_round(self):
         """
         Internal: Gets the top post in a subreddit that starts with "[Round".
@@ -85,6 +133,26 @@ class PictureGameBot:
         new = self.subreddit.get_new()
         return next(post for post in new if re.search(r"^\[Round", post.title,
                                                       re.IGNORECASE))
+
+    def reset_password(self, password=None):
+        """
+        Internal: Resets the password of the player account, determined by
+          self.r_player and logs into the account with the new password.
+
+        NOTE: The current password is sent via modmail and is also stored
+          by Heroku's logs (`heroku logs`) in case it goes down.
+
+        Returns the new password.
+        """
+        newpass = password or generate_password()
+        print("NEW PASSWORD: {:s}".format(newpass))
+        url = "http://www.reddit.com/api/update_password"
+        data = {"curpass": self.player[1], "newpass": newpass,
+                "verpass": newpass}
+        self.r_player.request_json(url, data=data)
+        self.player = (self.player[0], newpass)
+        self.r_player.login(self.player[0], self.player[1])
+        return newpass
 
     def increment_flair(self, user, curround):
         """
@@ -136,14 +204,15 @@ class PictureGameBot:
         """
         post.replace_more_comments(limit=None)
         comments = praw.helpers.flatten_tree(post.comments)
+		r_player = comment.submission.author
         for comment in comments:
             if (isinstance(comment, praw.objects.Comment)
-                    and comment.author == self.r_player.user
+                    and comment.author == r_player
                     and "+correct" in comment.body
                     and not comment.is_root):
                 parent = self.r_gamebot.get_info(thing_id=comment.parent_id)
                 if (parent.author is not None
-                        and parent.author != self.r_player.user):
+                        and parent.author != r_player):
                     return parent
 
     def already_replied(self, comment):
@@ -197,7 +266,6 @@ class PictureGameBot:
         )
         if op_:
             self.r_gamebot.send_message(op_, subject, text)
-        self.r_gamebot.send_message(self.r_player.user, subject, text)
 
     def create_challenge(self, run=True):
         """
@@ -246,7 +314,7 @@ class PictureGameBot:
             comments = praw.helpers.flatten_tree(post.comments)
             for comment in comments:
                 if (answer.lower() in comment.body.lower()
-                        and comment.author != self.r_player.user):
+                        and comment.author != comment.submission.author):
                     print("CORRECT ANSWER - {:s}".format(answer))
                     comment.reply("+correct")
                     return
