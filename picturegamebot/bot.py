@@ -371,7 +371,7 @@ class PictureGameBot:
           if LATEST POST IS UNSOLVED:
             if POST HAS ANSWER:
               send instructions to winner and approve them to the sub
-			  remove the old OP
+              remove the old OP
               chill for a bit
             or else:
               if 150 MINUTES HAVE PASSED AND I HAVEN'T WARNED YET:
@@ -410,7 +410,7 @@ class PictureGameBot:
                             and not self.already_replied(winner_comment)):
                         print("New winner! PMing new password.")
                         self.win(winner_comment)
-						self.subreddit.remove_contributor(current_op)
+                        self.subreddit.remove_contributor(current_op)
                         current_op = winner_comment.author
                         noanswer_warning = False
                         time.sleep(60)
