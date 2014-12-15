@@ -360,7 +360,7 @@ class PictureGameBot:
                  username=self.player[0],
                  password=self.player[1])
         self.r_gamebot.send_message(comment.author, subject, text)
-		self.subreddit.add_contributor(comment.author)
+        self.subreddit.add_contributor(comment.author)
         self.leaderboard.add(comment.author, curround, publish=True)
 
     def run(self):
