@@ -204,15 +204,14 @@ class PictureGameBot:
         """
         post.replace_more_comments(limit=None)
         comments = praw.helpers.flatten_tree(post.comments)
-        r_player = post.author
         for comment in comments:
             if (isinstance(comment, praw.objects.Comment)
-                    and comment.author == r_player
+                    and comment.author == post.author
                     and "+correct" in comment.body
                     and not comment.is_root):
                 parent = self.r_gamebot.get_info(thing_id=comment.parent_id)
                 if (parent.author is not None
-                        and parent.author != r_player):
+                        and parent.author != post.author):
                     return parent
 
     def already_replied(self, comment):
