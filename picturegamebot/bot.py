@@ -204,7 +204,7 @@ class PictureGameBot:
         """
         post.replace_more_comments(limit=None)
         comments = praw.helpers.flatten_tree(post.comments)
-        r_player = comment.submission.author
+        r_player = post.author
         for comment in comments:
             if (isinstance(comment, praw.objects.Comment)
                     and comment.author == r_player
